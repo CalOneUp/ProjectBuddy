@@ -1,4 +1,6 @@
 [build]
-  base    = "ProjectBuddy-fd7cc18f6d5cb83bcca65fca61ff128feaa2bf8e"
-  command = "npm run build"
-  publish = "build"
+  # We will first change directory (cd) and then run the build
+  command = "cd ProjectBuddy-fd7cc1to8feaa2bf8e && npm run build"
+
+  # The publish directory must now be relative to the repository root
+  publish = "ProjectBuddy-fd7cc18f6d5cb83bcca65fca61ff128feaa2bf8e/build"
