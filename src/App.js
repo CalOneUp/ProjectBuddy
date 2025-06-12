@@ -56,6 +56,20 @@ export default function App() {
     const [db, setDb] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     
+    // Simplified state-based navigation
+    const navigate = (page, projectId = null) => {
+        setRoute({ page, projectId });
+    };
+
+    // This hook runs once on initial load to check for a shared project ID in the URL
+    useEffect(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const sharedProjectId = queryParams.get('id');
+        if (sharedProjectId) {
+            navigate('project', sharedProjectId);
+        }
+    }, []); // The empty array ensures this runs only once when the component mounts
+
     // Initialize Firebase
     useEffect(() => {
         // Parse the Firebase config from the environment variable
@@ -72,11 +86,6 @@ export default function App() {
         setIsLoading(false);
 
     }, []);
-
-    // Simplified state-based navigation
-    const navigate = (page, projectId = null) => {
-        setRoute({ page, projectId });
-    };
 
     if (isLoading) {
         return <div className="min-h-screen bg-slate-900 flex justify-center items-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>;
@@ -386,8 +395,8 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
     }, [isDemo]);
 
     const requireName = (action) => {
-        if (isDemo) { // In demo mode, run action as 'Guest'
-            action('Guest');
+        if (isDemo) { // In demo mode, show an alert instead of running the action
+            alert("This feature is disabled in the demo project.");
             return;
         }
         if (userName) {
@@ -502,7 +511,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
     const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure?")) { const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
     
     const handleShareProject = () => {
-        const url = `${window.location.origin}${window.location.pathname}?id=${projectId}`;
+        const url = `${window.location.origin}?id=${projectId}`;
         navigator.clipboard.writeText(url).then(() => {
             setCopyFeedback('Link Copied!');
             setTimeout(() => setCopyFeedback(''), 2000);
