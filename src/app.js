@@ -1,0 +1,816 @@
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where } from 'firebase/firestore';
+
+// --- Helper Components & Icons ---
+const ChevronDown = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m6 9 6 6 6-6" /></svg>);
+const UserIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>);
+const AlertTriangleIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>);
+const PlusCircleIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>);
+const Trash2Icon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>);
+const ExternalLinkIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>);
+const SearchIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>);
+const ShareIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></svg>);
+const ClipboardIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>);
+const MessageSquareIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>);
+
+
+// --- App Data & Config ---
+const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
+
+// --- Word list for project code generation ---
+const WORDS = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'kiwi', 'lemon', 'mango', 'nectarine', 'orange', 'papaya', 'quince', 'raspberry', 'strawberry', 'tangerine', 'ugli', 'watermelon', 'zucchini', 'purple', 'monkey', 'dishwasher', 'rocket', 'planet', 'star', 'galaxy', 'comet', 'nebula', 'orbit', 'lunar', 'solar', 'astral'];
+
+// --- Utility Functions ---
+const getDeadlineStatus = (dueDate) => { 
+    if (!dueDate) return 'none'; 
+    const today = new Date(); 
+    today.setHours(0, 0, 0, 0); 
+    const deadline = new Date(dueDate + 'T00:00:00'); 
+    const diffTime = deadline.getTime() - today.getTime(); 
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    if (diffDays < 0) return 'overdue'; 
+    if (diffDays <= 7) return 'dueSoon'; 
+    return 'none'; 
+};
+const getDaysRemaining = (deadline) => { 
+    if(!deadline) return 0; 
+    const today = new Date(); 
+    const diffTime = new Date(deadline + 'T00:00:00').getTime() - today.getTime(); 
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+};
+const formatTimestamp = (firebaseTimestamp) => { if (!firebaseTimestamp?.toDate) return 'Just now'; return firebaseTimestamp.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }); };
+const generateProjectCode = () => {
+    const code = [];
+    for (let i = 0; i < 3; i++) {
+        code.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
+    }
+    return code.join('.');
+};
+
+// --- Main App Component ---
+export default function App() {
+    const [route, setRoute] = useState({ page: 'home', projectId: null });
+    const [db, setDb] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    // Initialize Firebase
+    useEffect(() => {
+        const firebaseConfig = {
+          apiKey: "AIzaSyCh-P92q7gdoicvkCS-4Sym6aAOGSRyFU4",
+          authDomain: "projectbuddy-43c48.firebaseapp.com",
+          projectId: "projectbuddy-43c48",
+          storageBucket: "projectbuddy-43c48.appspot.com",
+          messagingSenderId: "1095610217794",
+          appId: "1:1095610217794:web:0d8646f27d357e707604db"
+        };
+        
+        try {
+            const app = initializeApp(firebaseConfig);
+            const firestore = getFirestore(app);
+            setDb(firestore);
+        } catch (error) { 
+            console.error("Firebase initialization failed:", error); 
+        }
+
+        setIsLoading(false);
+
+    }, []);
+
+    // Simplified state-based navigation
+    const navigate = (page, projectId = null) => {
+        setRoute({ page, projectId });
+    };
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-slate-900 flex justify-center items-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>;
+    }
+
+    return (
+        <div className="min-h-screen bg-slate-900 font-sans text-white">
+             <style>
+                {`
+                    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
+                    .font-poppins {
+                        font-family: 'Poppins', sans-serif;
+                    }
+                `}
+            </style>
+            { route.page === 'home' && <HomePage db={db} appId="project-buddy-app" navigate={navigate} /> }
+            { route.page === 'project' && <ProjectPage db={db} appId="project-buddy-app" projectId={route.projectId} navigate={navigate} /> }
+        </div>
+    );
+}
+
+// --- Local Storage Manager for Recent Projects ---
+const recentProjectsManager = {
+    get: () => {
+        try {
+            const projects = localStorage.getItem('projectBuddy_recentProjects');
+            return projects ? JSON.parse(projects) : [];
+        } catch (e) {
+            console.error("Failed to parse recent projects from localStorage", e);
+            return [];
+        }
+    },
+    add: (project) => {
+        if (!project || !project.id || !project.name) return;
+        let projects = recentProjectsManager.get();
+        projects = projects.filter(p => p.id !== project.id);
+        projects.unshift(project);
+        projects = projects.slice(0, 5);
+        try {
+            localStorage.setItem('projectBuddy_recentProjects', JSON.stringify(projects));
+        } catch (e) {
+            console.error("Failed to save recent projects to localStorage", e);
+        }
+    }
+};
+
+// --- Home Page ---
+const HomePage = ({ db, appId, navigate }) => {
+    const [transcript, setTranscript] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [error, setError] = useState('');
+    const [recentProjects, setRecentProjects] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
+
+    useEffect(() => {
+        setRecentProjects(recentProjectsManager.get());
+    }, []);
+
+    const handleGenerateProject = async () => {
+        if (!transcript.trim()) {
+            setError('Please paste a transcript first.');
+            return;
+        }
+        setIsGenerating(true);
+        setError('');
+        
+        const today = new Date();
+        const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
+
+        const prompt = `
+        You are an expert project management assistant. Your goal is to analyze a meeting transcript and convert it into a structured, actionable JSON object. You must extract every action item.
+
+        **Instructions:**
+        1.  **projectName**: Create a short, descriptive name for the overall project.
+        2.  **projectDeadline**: Find the overall project deadline. If it's a relative date (e.g., 'end of next month'), calculate the specific date in YYYY-MM-DD format.
+        3.  **tasks**: This must be an array of task objects. **Do not skip any tasks mentioned.**
+            * **title**: Each title must be a concise, clear action item, **under 15 words**. Start with a verb. Do NOT just copy long sentences from the transcript. You MUST summarize the core action.
+            * **owner**: This MUST be a JSON array of strings. Identify the person(s) responsible. If a specific name is mentioned, use it. If multiple people are mentioned for one task, include them all in the array. If no specific person is mentioned, you MUST use 'Unassigned'. **Do not leave this field empty.**
+            * **category**: Assign a logical category like 'Marketing', 'Development', 'Design', or 'Admin'.
+            * **status**: Set to 'Pending' by default. Only use 'In Progress' or 'Done' if the transcript explicitly states it.
+            * **dueDate**: Find the task's due date. If it's a relative date (e.g., 'next Friday'), calculate the specific date in YYYY-MM-DD format. If no date is mentioned, use an empty string "".
+
+        **IMPORTANT CONTEXT**: Today is ${dayOfWeek}, ${formattedDate}. Use this to calculate relative dates.
+
+        **EXAMPLE:**
+        ---
+        **Input Transcript:** "Okay team, we need to launch the new website. Sarah, can you handle the design by next Friday? And Tom, the backend needs to be ready by the end of the month. The full launch is aimed for July 15th."
+        **Output JSON:**
+        {
+          "projectName": "New Website Launch",
+          "projectDeadline": "${new Date(today.getFullYear(), 6, 15).toISOString().split('T')[0]}",
+          "tasks": [
+            {
+              "title": "Finalize website design mockups",
+              "owner": ["Sarah"],
+              "category": "Design",
+              "status": "Pending",
+              "dueDate": "${new Date(today.getFullYear(), today.getMonth(), today.getDate() + (5 - today.getDay() + 7) % 7).toISOString().split('T')[0]}"
+            },
+            {
+              "title": "Complete backend development",
+              "owner": ["Tom"],
+              "category": "Development",
+              "status": "Pending",
+              "dueDate": "${new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]}"
+            }
+          ]
+        }
+        ---
+
+        **CRITICAL RULE**: The final output MUST be a single, valid JSON object and nothing else. Do not include any text or formatting before or after the JSON object. Do not use double quotes (") inside any string values; you MUST escape them with a backslash (\\\\").
+
+        **Transcript to Analyze:**
+        ---
+        ${transcript}
+        ---
+        `;
+        const generationConfig = { responseMimeType: "application/json", responseSchema: { type: 'OBJECT', properties: { projectName: { type: 'STRING' }, projectDeadline: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format.' }, tasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, owner: { type: 'ARRAY', items: { type: 'STRING' } }, category: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] }, dueDate: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format. Can be an empty string.' } } } } } } };
+        
+        try {
+            const apiKey = "AIzaSyBXs2tz6mecFwCoY6Z1Qh1n0xljPn7jcHo";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig };
+            
+            const apiResponse = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            
+            if (!apiResponse.ok) {
+                const errorText = await apiResponse.text();
+                throw new Error(`API call failed with status ${apiResponse.status}: ${errorText}`);
+            }
+
+            const result = await apiResponse.json();
+            const geminiText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!geminiText) {
+                throw new Error('The AI response was empty or in an unexpected format. Please try again.');
+            }
+            
+            const projectData = JSON.parse(geminiText);
+
+            if (!projectData.projectName || !Array.isArray(projectData.tasks)) {
+                 throw new Error('The AI response was missing key project information.');
+            }
+
+            const projectsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
+            
+            const newProjectRef = await addDoc(projectsCollectionRef, { 
+                name: projectData.projectName || 'Untitled Project', 
+                deadline: projectData.projectDeadline || null, 
+                createdAt: serverTimestamp(), 
+                code: generateProjectCode() 
+            });
+
+            const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'tasks');
+            
+            const tasksToAdd = projectData.tasks.map(task => ({
+                title: task.title || 'Untitled Task',
+                owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
+                category: task.category || 'General',
+                status: task.status || 'Pending',
+                dueDate: task.dueDate || ''
+            }));
+
+            await Promise.all(tasksToAdd.map(task => addDoc(tasksCollectionRef, task)));
+            
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'activityLog'), { 
+                log: `Project created by ✨ Project Buddy AI`, 
+                timestamp: serverTimestamp() 
+            });
+            
+            navigate('project', newProjectRef.id);
+
+        } catch (e) {
+            console.error("GENERATION FAILED:", e);
+            if (e instanceof SyntaxError) {
+                setError("Error: The AI's response was not valid. This can happen if the transcript contains unusual formatting. Please try modifying the transcript and generating again.");
+            } else {
+                setError(`An error occurred: ${e.message}`);
+            }
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+    
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (!searchQuery.trim()) return;
+        setIsSearching(true);
+        const projectsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
+        const q = query(projectsRef, where("code", "==", searchQuery.trim().toLowerCase()));
+        
+        try {
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const projectDoc = querySnapshot.docs[0];
+                navigate('project', projectDoc.id);
+            } else {
+                setError("Project not found. Please check the code and try again.");
+            }
+        } catch(err) {
+            console.error("Search failed:", err);
+            setError("An error occurred during search.");
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+            <header className="text-center mb-12">
+                <div className="flex justify-center items-center gap-4">
+                    <img src="https://i.ibb.co/VpkKcxRv/Untitled-design.png" alt="Project Buddy Mascot" className="w-16 h-16" onError={(e) => { e.target.style.display='none'; }}/>
+                    <h1 className="text-5xl font-poppins font-bold text-white tracking-tight">Project Buddy</h1>
+                </div>
+                <p className="text-indigo-300 text-lg mt-4">Turn your planning meetings into projects.</p>
+            </header>
+            
+            <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl mb-12">
+                <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started..." className="w-full h-64 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isGenerating}/>
+                <div className="mt-4 flex justify-end items-center">
+                    {error && !isGenerating && <p className="text-sm text-red-400 mr-4">{error}</p>}
+                    <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
+                        {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
+                    </button>
+                </div>
+            </div>
+
+            <div className="text-center">
+                 <h2 className="text-2xl font-bold text-white mb-4">Already working on a project?</h2>
+                <div className="max-w-lg mx-auto bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl">
+                    <form onSubmit={handleSearch} className="flex gap-2">
+                        <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />
+                        <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching}>
+                            {isSearching ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <SearchIcon className="w-5 h-5" />}
+                        </button>
+                    </form>
+                     {error && !isGenerating && <p className="text-sm text-red-400 mt-4">{error}</p>}
+                </div>
+            </div>
+
+
+            {recentProjects.length > 0 && (
+                <div className="mt-12">
+                    <h2 className="text-2xl font-bold text-white mb-4 text-center">Recently Viewed Projects</h2>
+                    <div className="max-w-lg mx-auto space-y-3">
+                        {recentProjects.map(proj => (
+                            <div key={proj.id} onClick={() => navigate('project', proj.id)} className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-indigo-500 flex justify-between items-center cursor-pointer transition-colors">
+                                <span className="font-semibold text-slate-200">{proj.name}</span>
+                                <ExternalLinkIcon className="w-5 h-5 text-slate-400" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Project Page ---
+const ProjectPage = ({ db, appId, projectId, navigate }) => {
+    const [tasks, setTasks] = useState([]);
+    const [project, setProject] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [gsapReady, setGsapReady] = useState(false);
+    const [filterOwner, setFilterOwner] = useState('All');
+    const [showAddTaskForm, setShowAddTaskForm] = useState(false);
+    const [showUpdateForm, setShowUpdateForm] = useState(false);
+    const [updateFeedback, setUpdateFeedback] = useState('');
+    const [copyFeedback, setCopyFeedback] = useState('');
+    const [slackUpdate, setSlackUpdate] = useState(null);
+    const [isGeneratingUpdate, setIsGeneratingUpdate] = useState(false);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [projectName, setProjectName] = useState('');
+    const [isEditingDeadline, setIsEditingDeadline] = useState(false);
+    const [projectDeadline, setProjectDeadline] = useState('');
+    const [userName, setUserName] = useState(null);
+    const [showNamePrompt, setShowNamePrompt] = useState(false);
+    const [actionToRun, setActionToRun] = useState(null);
+    
+    useEffect(() => {
+        const storedName = localStorage.getItem('projectBuddy_userName');
+        if (storedName) {
+            setUserName(storedName);
+        } else {
+            // Prompt for name as soon as the project page is loaded
+            setShowNamePrompt(true);
+        }
+    }, []);
+
+    const requireName = (action) => {
+        if (userName) {
+            action(userName);
+        } else {
+            setActionToRun(() => action);
+            setShowNamePrompt(true);
+        }
+    };
+    
+    useEffect(() => { if (window.gsap && window.Flip) { if (!gsapReady) setGsapReady(true); return; } const gsapScript = document.createElement('script'); gsapScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js'; gsapScript.async = true; gsapScript.onload = () => { const flipScript = document.createElement('script'); flipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/Flip.min.js'; flipScript.async = true; flipScript.onload = () => { window.gsap.registerPlugin(window.Flip); setGsapReady(true); }; document.body.appendChild(flipScript); }; document.body.appendChild(gsapScript); }, [gsapReady]);
+
+    useEffect(() => {
+        if (!db || !projectId) return;
+        setIsLoading(true);
+        
+        const projectRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId);
+        const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks');
+
+        const unsubProject = onSnapshot(projectRef, docSnap => {
+            if (docSnap.exists()) {
+                const projectData = { id: docSnap.id, ...docSnap.data() };
+                setProject(projectData);
+                setProjectName(projectData.name);
+                setProjectDeadline(projectData.deadline || '');
+                recentProjectsManager.add({ id: projectData.id, name: projectData.name });
+            } else {
+                console.error("Project not found!");
+                setProject(null);
+            }
+        });
+
+        const unsubTasks = onSnapshot(tasksCollectionRef, snapshot => { 
+            const statusOrder = { 'In Progress': 1, 'Pending': 2, 'Done': 3 };
+            const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            fetchedTasks.sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
+            setTasks(fetchedTasks);
+            setIsLoading(false); 
+        });
+
+        return () => { unsubProject(); unsubTasks(); };
+    }, [db, appId, projectId]);
+    
+    const handleProjectUpdate = (updates, actor) => {
+        if (!db || !projectId) return;
+        const projectRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId);
+        try {
+            updateDoc(projectRef, updates);
+            const field = Object.keys(updates)[0];
+            logActivity(`${actor} updated the project ${field} to "${updates[field]}"`);
+        } catch (e) {
+            console.error("Error updating project details: ", e);
+        }
+    };
+
+    const handleSaveName = () => requireName((name) => {
+        if (projectName.trim() && projectName !== project.name) {
+            handleProjectUpdate({ name: projectName.trim() }, name);
+        }
+        setIsEditingName(false);
+    });
+
+    const handleNameKeydown = (e) => {
+        if (e.key === 'Enter') handleSaveName();
+        else if (e.key === 'Escape') {
+            setProjectName(project.name);
+            setIsEditingName(false);
+        }
+    };
+    
+    const handleSaveDeadline = () => requireName((name) => {
+        if (projectDeadline !== (project.deadline || '')) {
+            handleProjectUpdate({ deadline: projectDeadline }, name);
+        }
+        setIsEditingDeadline(false);
+    });
+    
+    const handleDeadlineKeydown = (e) => {
+        if (e.key === 'Enter') handleSaveDeadline();
+        else if (e.key === 'Escape') {
+            setProjectDeadline(project.deadline || '');
+            setIsEditingDeadline(false);
+        }
+    };
+
+    const logActivity = async (logMessage) => { if(!db) return; const logRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, timestamp: serverTimestamp() }); };
+    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (!db) return; const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
+    const handleAddTask = (newTask) => requireName((name) => { if (!db) return; const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
+    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (!db) return; if (window.confirm("Are you sure?")) { const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
+    
+    const handleShareProject = () => {
+        const url = `${window.location.origin}${window.location.pathname}?id=${projectId}`;
+        navigator.clipboard.writeText(url).then(() => {
+            setCopyFeedback('Link Copied!');
+            setTimeout(() => setCopyFeedback(''), 2000);
+        });
+    };
+    
+    const handleUpdateWithTranscript = (newTranscript) => requireName(async (name) => {
+        const existingTasksString = tasks.map(t => t.title).join(', ');
+        const prompt = `You are an intelligent project management assistant. Analyze the provided "New Transcript" in the context of the "Existing Task List". Your goal is to identify both brand new tasks and updates to existing tasks. IMPORTANT: In all generated text content (like task titles or comments), do not use double quotes ("). Use single quotes (') or other symbols instead.\n\n**Existing Task List:**\n${existingTasksString}\n\n**New Transcript:**\n---\n${newTranscript}\n---\n\nBased on your analysis, return a single JSON object with two keys: "newTasks" and "taskUpdates".\n\n1.  **newTasks**: An array of task objects for action items mentioned in the transcript that are NOT on the existing list. Each owner property should be an array of strings.\n2.  **taskUpdates**: An array of objects for existing tasks that have updates mentioned in the transcript. Each object should contain the 'title' of the existing task to update, a 'comment' summarizing the update, and a new 'status' if the transcript implies a change (e.g., from 'Pending' to 'In Progress').\n\nIf no new tasks are found, "newTasks" should be an empty array.\nIf no updates are found, "taskUpdates" should be an empty array.`;
+        const generationConfig = { responseMimeType: "application/json", responseSchema: { type: 'OBJECT', properties: { newTasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, owner: { type: 'ARRAY', items: { type: 'STRING' } }, category: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] }, dueDate: { type: 'STRING' } } } }, taskUpdates: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, comment: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] } } } } } } };
+        try { 
+            const apiKey = "AIzaSyBXs2tz6mecFwCoY6Z1Qh1n0xljPn7jcHo"; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig }; 
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
+            if (!response.ok) throw new Error(`API call failed: ${response.status}`); 
+            const result = await response.json(); 
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) { 
+                const { newTasks, taskUpdates } = JSON.parse(result.candidates[0].content.parts[0].text); 
+                let summaryParts = []; 
+                if (newTasks?.length > 0) { 
+                    const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks'); 
+                    const sanitizedNewTasks = newTasks.map(task => ({
+                        title: task.title || 'Untitled Task',
+                        owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
+                        category: task.category || 'General',
+                        status: task.status || 'Pending',
+                        dueDate: task.dueDate || ''
+                    }));
+                    await Promise.all(sanitizedNewTasks.map(task => addDoc(tasksRef, task))); 
+                    logActivity(`Project updated with ${newTasks.length} new task(s) from transcript by ✨ Project Buddy AI`); 
+                    summaryParts.push(`Added ${newTasks.length} new task(s).`); 
+                } 
+                if (taskUpdates?.length > 0) { 
+                    for (const update of taskUpdates) { 
+                        const originalTask = tasks.find(t => t.title.toLowerCase() === update.title.toLowerCase()); 
+                        if (originalTask) { 
+                            const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', originalTask.id); 
+                            await updateDoc(taskRef, { status: update.status }); 
+                            const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', originalTask.id, 'comments'); 
+                            await addDoc(commentsRef, { text: `**Update detected:**\n${update.comment}`, author: '✨ Project Buddy AI', timestamp: serverTimestamp() }); 
+                        } 
+                    } 
+                    logActivity(`AI applied ${taskUpdates.length} update(s) from the transcript.`); 
+                    summaryParts.push(`Updated ${taskUpdates.length} existing task(s).`); 
+                } 
+                if (summaryParts.length > 0) { 
+                    setUpdateFeedback(summaryParts.join(' ')); 
+                } else { 
+                    setUpdateFeedback('AI analyzed the transcript but found no new tasks or updates to apply.'); 
+                    logActivity(`AI analyzed transcript but found no new tasks or updates.`); 
+                } 
+                setTimeout(()=>setUpdateFeedback(''), 7000); 
+            } else { 
+                throw new Error('Unexpected response format from AI.'); 
+            } 
+        } catch (e) { 
+            console.error(e); 
+            alert("Failed to update project with transcript."); 
+        }
+    });
+
+    const handleGenerateSlackUpdate = async () => {
+        setIsGeneratingUpdate(true);
+        setSlackUpdate(null);
+
+        const tasksInProgress = tasks.filter(t => t.status === 'In Progress').map(t => t.title);
+        const tasksDone = tasks.filter(t => t.status === 'Done').map(t => t.title);
+        const tasksPending = tasks.filter(t => t.status === 'Pending').map(t => t.title);
+        
+        const prompt = `
+            Generate a concise, friendly project status update suitable for Slack. Use Slack's markdown.
+            
+            Project Name: *${project.name}*
+            Overall Progress: ${Math.round((tasksDone.length / tasks.length) * 100)}%
+            
+            Here is the data:
+            - In Progress: ${JSON.stringify(tasksInProgress)}
+            - Recently Completed: ${JSON.stringify(tasksDone.slice(0, 5))}
+            - Blocked/Pending: ${JSON.stringify(tasksPending)}
+            
+            Summarize the current status, highlight any blocked tasks, and list what was recently completed. Keep it brief and positive. Start with a friendly opening.
+        `;
+
+        try {
+            const apiKey = "AIzaSyBXs2tz6mecFwCoY6Z1Qh1n0xljPn7jcHo";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error("Failed to generate update.");
+            const result = await response.json();
+            const updateText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (updateText) {
+                setSlackUpdate(updateText);
+            }
+        } catch (error) {
+            console.error("Slack Update Generation Failed:", error);
+            setSlackUpdate("Sorry, I couldn't generate an update right now.");
+        } finally {
+            setIsGeneratingUpdate(false);
+        }
+    };
+
+    const dynamicCategories = [...new Set(tasks.map(t => t.category).filter(Boolean))].sort();
+    const dynamicTeam = [...new Set(tasks.flatMap(t => t.owner || []))].filter((v, i, a) => a.indexOf(v) === i).sort();
+    const filteredTasks = filterOwner === 'All' ? tasks : tasks.filter(task => task.owner?.includes(filterOwner));
+    const progress = tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'Done').length / tasks.length) * 100) : 0;
+    const projectDeadlineDate = projectDeadline ? new Date(projectDeadline) : null;
+    const daysRemaining = projectDeadline ? getDaysRemaining(projectDeadline) : 0;
+
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-slate-900 flex justify-center items-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>;
+    }
+    
+    if (!project) {
+        return <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center text-white"><h1 className="text-4xl font-bold mb-4">Project Not Found</h1><p className="text-slate-400 mb-8">The project you are looking for does not exist or has been deleted.</p><button onClick={() => navigate('home')} className="px-6 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-500">Go Home</button></div>
+    }
+
+    return (
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            <UserPromptModal 
+                isOpen={showNamePrompt}
+                onSubmit={(name) => {
+                    setUserName(name);
+                    localStorage.setItem('projectBuddy_userName', name);
+                    if(actionToRun) {
+                        actionToRun(name);
+                    }
+                    setShowNamePrompt(false);
+                    setActionToRun(null);
+                }}
+                onCancel={() => setShowNamePrompt(false)}
+            />
+            <SlackUpdateModal isOpen={!!slackUpdate} onClose={() => setSlackUpdate(null)} updateText={slackUpdate} />
+            <header className="mb-8">
+                <div className="flex justify-between items-start">
+                    <div>
+                        {isEditingName ? (
+                            <input 
+                                type="text"
+                                value={projectName}
+                                onChange={(e) => setProjectName(e.target.value)}
+                                onBlur={handleSaveName}
+                                onKeyDown={handleNameKeydown}
+                                className="text-4xl font-extrabold bg-slate-700 text-white tracking-tight rounded-md -ml-2 -mt-2 -mb-2 p-2"
+                                autoFocus
+                            />
+                        ) : (
+                            <h1 className="text-4xl font-poppins font-bold text-white tracking-tight mb-2 cursor-pointer hover:bg-slate-800/50 rounded-md -ml-2 -mt-2 -mb-2 p-2" onClick={() => requireName(() => setIsEditingName(true))}>
+                                Project Buddy / <span className="text-indigo-400">{project.name}</span>
+                            </h1>
+                        )}
+                        <p className="text-indigo-300 mt-2">A real-time dashboard to track project progress.</p>
+                    </div>
+                    <div className="text-right">
+                        {project.code && 
+                            <div className="flex items-center gap-2 justify-end mb-2">
+                                <span className="text-sm text-slate-400">Project Code: <span className="font-mono text-indigo-300">{project.code}</span></span>
+                                <button onClick={handleShareProject} className="p-1.5 bg-slate-700/50 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors" title="Copy Share Link">
+                                    <ShareIcon className="w-4 h-4" />
+                                </button>
+                                {copyFeedback && <span className="text-xs text-green-400">{copyFeedback}</span>}
+                            </div>
+                        }
+                        {isEditingDeadline ? (
+                             <input 
+                                type="date"
+                                value={projectDeadline}
+                                onChange={(e) => setProjectDeadline(e.target.value)}
+                                onBlur={handleSaveDeadline}
+                                onKeyDown={handleDeadlineKeydown}
+                                className="bg-slate-700 text-white rounded-md p-1"
+                                autoFocus
+                             />
+                        ) : (
+                            <div className="cursor-pointer hover:bg-slate-800/50 p-1 rounded-md" onClick={() => requireName(() => setIsEditingDeadline(true))}>
+                                <div className="text-sm text-slate-400">Project Deadline</div>
+                                {project.deadline ? (
+                                    <>
+                                        <div className="text-2xl font-bold text-white">{new Date(project.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                                        <div className={`text-sm font-semibold ${daysRemaining < 0 ? 'text-red-400' : 'text-slate-300'}`}>{daysRemaining >= 0 ? `${daysRemaining} days remaining` : `${Math.abs(daysRemaining)} days overdue`}</div>
+                                    </>
+                                ) : (
+                                    <div className="text-lg text-slate-400">Set Deadline</div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </header>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="md:col-span-2 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                    <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-indigo-300 font-semibold">{progress}%</span></div>
+                    <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-indigo-500 h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div>
+                </div>
+                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 flex items-center"><label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label><select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"><option value="All">All Owners</option>{dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}</select></div>
+            </div>
+             {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
+            <div className="mb-8 flex gap-4">
+                <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors"><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
+                <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors"><span className="text-lg">✨</span> Update with Transcript</button>
+                <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50">
+                    {isGeneratingUpdate ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <MessageSquareIcon className="w-5 h-5" /> }
+                    Generate Slack Update
+                </button>
+            </div>
+            {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} team={dynamicTeam} onCancel={() => setShowAddTaskForm(false)} />}
+            {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
+            {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={appId} projectId={projectId} logActivity={logActivity} userName={userName} />))}</div>
+                    <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} /></div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Sub-Components for Project Page ---
+const UserPromptModal = ({ isOpen, onSubmit, onCancel }) => {
+    const [name, setName] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (name.trim()) {
+            onSubmit(name.trim());
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 shadow-2xl max-w-sm w-full mx-4">
+                <h3 className="text-lg font-bold text-white mb-2">What's your name?</h3>
+                <p className="text-slate-400 text-sm mb-6">Please enter your name to attribute your changes.</p>
+                <form onSubmit={handleSubmit}>
+                    <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-md focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Your Name"
+                        autoFocus
+                    />
+                    <div className="flex justify-end gap-4 mt-6">
+                         <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button>
+                         <button type="submit" disabled={!name.trim()} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const SlackUpdateModal = ({ isOpen, onClose, updateText }) => {
+    const [copySuccess, setCopySuccess] = useState('');
+
+    const handleCopy = () => {
+        if (updateText) {
+            navigator.clipboard.writeText(updateText).then(() => {
+                setCopySuccess('Copied!');
+                setTimeout(() => setCopySuccess(''), 2000);
+            });
+        }
+    };
+    
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 shadow-2xl max-w-2xl w-full mx-4" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-white mb-2">Slack Project Update</h3>
+                <div className="bg-slate-900/50 rounded-md p-4 my-4 max-h-[60vh] overflow-y-auto">
+                    <pre className="text-slate-200 whitespace-pre-wrap font-sans text-sm">{updateText}</pre>
+                </div>
+                <div className="flex justify-end gap-4">
+                    <button onClick={handleCopy} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 flex items-center gap-2">
+                        <ClipboardIcon className="w-4 h-4"/>
+                        {copySuccess || 'Copy Update'}
+                    </button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Close</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+const UpdateProjectForm = ({ onUpdate, onCancel }) => { const [transcript, setTranscript] = useState(''); const [isUpdating, setIsUpdating] = useState(false); const handleSubmit = async (e) => { e.preventDefault(); setIsUpdating(true); await onUpdate(transcript); setIsUpdating(false); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-2">Update Project with Transcript</h3><p className="text-sm text-slate-400 mb-4">Paste in a follow-up transcript. ProjectBuddy will find updates to existing tasks and add any new tasks it discovers.</p><form onSubmit={handleSubmit}><textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your follow-up meeting transcript here..." className="w-full h-48 bg-slate-700 border border-slate-600 rounded-md p-4 text-sm text-white focus:ring-2 focus:ring-indigo-500" disabled={isUpdating} /><div className="flex justify-end gap-4 mt-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50" disabled={isUpdating || !transcript.trim()}>{isUpdating ? <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>Updating...</> : <><span className="text-lg">✨</span> Update Project</>}</button></div></form></div>);};
+const ActivityLog = ({ db, appId, projectId }) => { const [activities, setActivities] = useState([]); useEffect(() => { if (!db) return; 
+    const logCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog');
+    const unsub = onSnapshot(logCollectionRef, (snap) => {
+        const fetchedActivities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        fetchedActivities.sort((a, b) => {
+            const timeA = a.timestamp?.toDate() || new Date(0);
+            const timeB = b.timestamp?.toDate() || new Date(0);
+            return timeB - timeA;
+        });
+
+        setActivities(fetchedActivities);
+    }); 
+    return () => unsub(); 
+}, [db, appId, projectId]); return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 my-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-4">Project Activity</h3><div className="space-y-3 max-h-96 overflow-y-auto pr-2">{activities.map(act => (<div key={act.id} className="text-sm border-l-2 border-slate-700 pl-3"><p className="text-slate-200 whitespace-pre-wrap">{act.log}</p><p className="text-xs text-slate-400 mt-1">{formatTimestamp(act.timestamp)}</p></div>))}</div></div>);};
+const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-indigo-500/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} />))}</div></div>);};
+const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity }) => { const [isExpanded, setIsExpanded] = useState(false); const cardRef = useRef(null); const toggleExpand = () => { if (!window.Flip) return; const state = window.Flip.getState(cardRef.current); setIsExpanded(!isExpanded); window.Flip.from(state, { duration: 0.3, ease: "power1.inOut" }); }; const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending']; const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none'; const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort(); return (<div ref={cardRef} className={`bg-white/5 border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-white/10'}`}><div className="p-4 cursor-pointer" onClick={toggleExpand}><div className="flex justify-between items-center gap-4"><div className="flex items-center flex-1 min-w-0">{deadlineStatus !== 'none' && task.status !== 'Done' && (<AlertTriangleIcon className={`w-5 h-5 mr-3 shrink-0 ${deadlineStatus === 'overdue' ? 'text-red-500' : 'text-yellow-500'}`} />)}<p className="text-slate-100 truncate">{task.title}</p></div><div className="flex items-center space-x-2 sm:space-x-4 shrink-0">{task.dueDate && <span className="text-xs text-slate-400 hidden sm:block">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-CA')}</span>}<span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span><div className="w-24 text-sm text-slate-400 flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div><ChevronDown className={`w-6 h-6 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} /></div></div></div>{isExpanded && (<div className="px-4 pb-4 border-t border-white/10"><div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4"><div><label className="block text-xs text-slate-400 mb-1">Status</label><select value={task.status} onChange={(e) => onUpdate(task.id, {status: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500">{Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}</select></div><MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} /><div><label className="block text-xs text-slate-400 mb-1">Due Date</label><input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"/></div></div><CommentSection db={db} appId={appId} projectId={projectId} taskId={taskId} currentUser={userName} logActivity={logActivity} taskTitle={task.title} /><div className="flex justify-end mt-4"><button onClick={() => onDelete(task.id, task.title)} className="flex items-center text-sm text-red-400 hover:text-red-300 transition-colors"><Trash2Icon className="w-4 h-4 mr-2" /> Delete Task</button></div></div>)}</div>);};
+const AddTaskForm = ({ onAddTask, categories, team, onCancel }) => { const [title, setTitle] = useState(''); const [category, setCategory] = useState(categories[0] || 'Uncategorized'); const [owners, setOwners] = useState(team[0] ? [team[0]] : []); const [dueDate, setDueDate] = useState(''); const [newCategory, setNewCategory] = useState(''); const [newOwner, setNewOwner] = useState(''); const handleSubmit = (e) => { e.preventDefault(); if (!title.trim()) return; const finalCategory = category === '---new---' ? newCategory.trim() : category; let finalOwners = owners; if (newOwner.trim()) { finalOwners = [...finalOwners, newOwner.trim()]; } if (!finalCategory || finalOwners.length === 0) { alert("Please ensure category and owner are set."); return; } onAddTask({ title: title.trim(), category: finalCategory, owner: finalOwners, dueDate, status: 'Pending' }); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-4">Add New Task</h3><form onSubmit={handleSubmit}><div className="mb-4"><label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">Task Title</label><input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Category / Section</label><select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)} <option value="---new---">-- Add New Category --</option></select>{category === '---new---' && (<input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />)}</div><MultiSelectOwner owners={owners} allOwners={[...team, newOwner.trim()].filter(Boolean)} onUpdate={setOwners} isNewTask={true} newOwner={newOwner} setNewOwner={setNewOwner} /><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Date</label><input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"/></div></div><div className="flex justify-end gap-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500">Add Task</button></div></form></div>);};
+const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity, taskTitle }) => { 
+    const [comments, setComments] = useState([]); 
+    const [newComment, setNewComment] = useState(''); 
+    useEffect(() => { 
+        if (!db || !taskId || !projectId) return; 
+        const commentsQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments'), orderBy('timestamp', 'asc')); 
+        const unsubscribe = onSnapshot(commentsQuery, (snapshot) => { setComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); }); 
+        return () => unsubscribe(); 
+    }, [db, appId, projectId, taskId]); 
+    
+    const handleAddComment = async (e) => { 
+        e.preventDefault(); 
+        const trimmedComment = newComment.trim();
+        if (!trimmedComment || !db) return; 
+        const commentsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments'); 
+        await addDoc(commentsCollectionRef, { text: trimmedComment, author: currentUser || 'Guest', timestamp: serverTimestamp() }); 
+        if (logActivity) {
+            logActivity(`${currentUser || 'Guest'} commented on '${taskTitle}': "${trimmedComment}"`);
+        }
+        setNewComment(''); 
+    }; 
+    
+    return (
+        <div className="pt-4 mt-4 border-t border-white/10">
+            <h4 className="text-sm font-semibold text-slate-300 mb-2">Comments</h4>
+            <div className="space-y-3 mb-4 max-h-48 overflow-y-auto pr-2">
+                {comments.map(comment => (
+                    <div key={comment.id} className="text-sm bg-slate-800/50 p-2 rounded-md">
+                        <p className="text-slate-200 whitespace-pre-wrap">{comment.text}</p>
+                        <p className="text-xs text-slate-400 mt-1"><strong>{comment.author}</strong> - {formatTimestamp(comment.timestamp)}</p>
+                    </div>
+                ))}
+            </div>
+            <form onSubmit={handleAddComment} className="flex gap-2">
+                <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment..." className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />
+                <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50" disabled={!newComment.trim() || !currentUser}>Send</button>
+            </form>
+        </div>
+    );
+};
+const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, setNewOwner }) => { const [isOpen, setIsOpen] = useState(false); const wrapperRef = useRef(null); useEffect(() => { function handleClickOutside(event) { if (wrapperRef.current && !wrapperRef.current.contains(event.target)) { setIsOpen(false); } } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [wrapperRef]); const handleOwnerChange = (owner, checked) => { const newOwners = checked ? [...owners, owner] : owners.filter(o => o !== owner); onUpdate(newOwners); }; return (<div><label className="block text-xs text-slate-400 mb-1">Owner(s)</label><div ref={wrapperRef} className="relative"><button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white text-left flex justify-between items-center">
+  <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+  {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-slate-700 cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+    <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-slate-700 border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-indigo-500"/></div>)}</div>)}</div></div>);};
