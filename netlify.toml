@@ -1,4 +1,4 @@
 [build]
-  base = "ProjectBuddy-fd7cc18f6d5cb83bcca65fca61ff128feaa2bf8e"
+  base    = "ProjectBuddy-fd7cc18f6d5cb83bcca65fca61ff128feaa2bf8e"
   command = "npm run build"
   publish = "build"
