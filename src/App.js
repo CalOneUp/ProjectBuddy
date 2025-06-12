@@ -13,10 +13,12 @@ const SearchIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24
 const ShareIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></svg>);
 const ClipboardIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>);
 const MessageSquareIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>);
+const EyeIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>);
 
 
 // --- App Data & Config ---
 const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
+const DEMO_PROJECT_ID = 'demo-project-123';
 
 // --- Word list for project code generation ---
 const WORDS = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'kiwi', 'lemon', 'mango', 'nectarine', 'orange', 'papaya', 'quince', 'raspberry', 'strawberry', 'tangerine', 'ugli', 'watermelon', 'zucchini', 'purple', 'monkey', 'dishwasher', 'rocket', 'planet', 'star', 'galaxy', 'comet', 'nebula', 'orbit', 'lunar', 'solar', 'astral'];
@@ -108,7 +110,7 @@ const recentProjectsManager = {
         }
     },
     add: (project) => {
-        if (!project || !project.id || !project.name) return;
+        if (!project || !project.id || !project.name || project.id === DEMO_PROJECT_ID) return; // Don't save demo project
         let projects = recentProjectsManager.get();
         projects = projects.filter(p => p.id !== project.id);
         projects.unshift(project);
@@ -294,7 +296,7 @@ const HomePage = ({ db, appId, navigate }) => {
                 <p className="text-indigo-300 text-lg mt-4">Turn your planning meetings into projects.</p>
             </header>
             
-            <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl mb-12">
+            <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl mb-6">
                 <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started..." className="w-full h-64 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isGenerating}/>
                 <div className="mt-4 flex justify-end items-center">
                     {error && !isGenerating && <p className="text-sm text-red-400 mr-4">{error}</p>}
@@ -303,6 +305,20 @@ const HomePage = ({ db, appId, navigate }) => {
                     </button>
                 </div>
             </div>
+
+            <div className="text-center mb-12">
+                <p className="text-slate-400">
+                    Or{" "}
+                    <button 
+                        onClick={() => navigate('project', DEMO_PROJECT_ID)} 
+                        className="text-indigo-400 hover:text-indigo-300 underline font-semibold"
+                    >
+                        view an example project
+                    </button> 
+                    {" "}to see how it works.
+                </p>
+            </div>
+
 
             <div className="text-center">
                  <h2 className="text-2xl font-bold text-white mb-4">Already working on a project?</h2>
@@ -356,17 +372,24 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
     const [showNamePrompt, setShowNamePrompt] = useState(false);
     const [actionToRun, setActionToRun] = useState(null);
     
+    const isDemo = projectId === DEMO_PROJECT_ID;
+
     useEffect(() => {
         const storedName = localStorage.getItem('projectBuddy_userName');
         if (storedName) {
             setUserName(storedName);
-        } else {
-            // Prompt for name as soon as the project page is loaded
+        } else if (!isDemo) { // Don't prompt for name in demo mode
             setShowNamePrompt(true);
+        } else {
+            setUserName('Guest'); // Set a default name for demo
         }
-    }, []);
+    }, [isDemo]);
 
     const requireName = (action) => {
+        if (isDemo) { // In demo mode, run action as 'Guest'
+            action('Guest');
+            return;
+        }
         if (userName) {
             action(userName);
         } else {
@@ -378,6 +401,29 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
     useEffect(() => { if (window.gsap && window.Flip) { if (!gsapReady) setGsapReady(true); return; } const gsapScript = document.createElement('script'); gsapScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js'; gsapScript.async = true; gsapScript.onload = () => { const flipScript = document.createElement('script'); flipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/Flip.min.js'; flipScript.async = true; flipScript.onload = () => { window.gsap.registerPlugin(window.Flip); setGsapReady(true); }; document.body.appendChild(flipScript); }; document.body.appendChild(gsapScript); }, [gsapReady]);
 
     useEffect(() => {
+        if (isDemo) {
+            const today = new Date();
+            const demoDeadline = new Date(today.getFullYear(), today.getMonth() + 2, 15); // Deadline in 2 months
+            setProject({
+                id: DEMO_PROJECT_ID,
+                name: 'Website Redesign (Demo)',
+                deadline: demoDeadline.toISOString().split('T')[0],
+                code: 'view.example.only',
+                isDemo: true,
+            });
+            const demoTasks = [
+                { id: 'demo-1', title: 'Draft initial design mockups', owner: ['Alice'], category: 'Design', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 7)).toISOString().split('T')[0] },
+                { id: 'demo-2', title: 'Set up staging server environment', owner: ['Bob'], category: 'Development', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 10)).toISOString().split('T')[0] },
+                { id: 'demo-3', title: 'Finalize branding and color palette', owner: ['Alice'], category: 'Design', status: 'Done', dueDate: new Date(new Date().setDate(today.getDate() - 5)).toISOString().split('T')[0] },
+                { id: 'demo-4', title: 'Develop user authentication flow', owner: ['Charlie'], category: 'Development', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 21)).toISOString().split('T')[0] },
+                { id: 'demo-5', title: 'Write copy for the new homepage', owner: ['Unassigned'], category: 'Marketing', status: 'Pending', dueDate: '' },
+                { id: 'demo-6', title: 'Review and approve final designs', owner: ['David'], category: 'Design', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 14)).toISOString().split('T')[0] },
+            ];
+            setTasks(demoTasks);
+            setIsLoading(false);
+            return; // Exit effect for demo mode
+        }
+
         if (!db || !projectId) return;
         setIsLoading(true);
         
@@ -406,10 +452,10 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
         });
 
         return () => { unsubProject(); unsubTasks(); };
-    }, [db, appId, projectId]);
+    }, [db, appId, projectId, isDemo]);
     
     const handleProjectUpdate = (updates, actor) => {
-        if (!db || !projectId) return;
+        if (isDemo || !db || !projectId) return;
         const projectRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId);
         try {
             updateDoc(projectRef, updates);
@@ -450,10 +496,10 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
         }
     };
 
-    const logActivity = async (logMessage) => { if(!db) return; const logRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, timestamp: serverTimestamp() }); };
-    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (!db) return; const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
-    const handleAddTask = (newTask) => requireName((name) => { if (!db) return; const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
-    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (!db) return; if (window.confirm("Are you sure?")) { const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
+    const logActivity = async (logMessage) => { if(isDemo || !db) return; const logRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, timestamp: serverTimestamp() }); };
+    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
+    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
+    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure?")) { const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
     
     const handleShareProject = () => {
         const url = `${window.location.origin}${window.location.pathname}?id=${projectId}`;
@@ -464,6 +510,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
     };
     
     const handleUpdateWithTranscript = (newTranscript) => requireName(async (name) => {
+        if (isDemo) return;
         const existingTasksString = tasks.map(t => t.title).join(', ');
         const prompt = `You are an intelligent project management assistant. Analyze the provided "New Transcript" in the context of the "Existing Task List". Your goal is to identify both brand new tasks and updates to existing tasks. IMPORTANT: In all generated text content (like task titles or comments), do not use double quotes ("). Use single quotes (') or other symbols instead.\n\n**Existing Task List:**\n${existingTasksString}\n\n**New Transcript:**\n---\n${newTranscript}\n---\n\nBased on your analysis, return a single JSON object with two keys: "newTasks" and "taskUpdates".\n\n1.  **newTasks**: An array of task objects for action items mentioned in the transcript that are NOT on the existing list. Each owner property should be an array of strings.\n2.  **taskUpdates**: An array of objects for existing tasks that have updates mentioned in the transcript. Each object should contain the 'title' of the existing task to update, a 'comment' summarizing the update, and a new 'status' if the transcript implies a change (e.g., from 'Pending' to 'In Progress').\n\nIf no new tasks are found, "newTasks" should be an empty array.\nIf no updates are found, "taskUpdates" should be an empty array.`;
         const generationConfig = { responseMimeType: "application/json", responseSchema: { type: 'OBJECT', properties: { newTasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, owner: { type: 'ARRAY', items: { type: 'STRING' } }, category: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] }, dueDate: { type: 'STRING' } } } }, taskUpdates: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, comment: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] } } } } } } };
@@ -604,9 +651,10 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
                                 onKeyDown={handleNameKeydown}
                                 className="text-4xl font-extrabold bg-slate-700 text-white tracking-tight rounded-md -ml-2 -mt-2 -mb-2 p-2"
                                 autoFocus
+                                disabled={isDemo}
                             />
                         ) : (
-                            <h1 className="text-4xl font-poppins font-bold text-white tracking-tight mb-2 cursor-pointer hover:bg-slate-800/50 rounded-md -ml-2 -mt-2 -mb-2 p-2" onClick={() => requireName(() => setIsEditingName(true))}>
+                            <h1 className={`text-4xl font-poppins font-bold text-white tracking-tight mb-2 rounded-md -ml-2 -mt-2 -mb-2 p-2 ${!isDemo && 'cursor-pointer hover:bg-slate-800/50'}`} onClick={() => !isDemo && requireName(() => setIsEditingName(true))}>
                                 Project Buddy / <span className="text-indigo-400">{project.name}</span>
                             </h1>
                         )}
@@ -616,9 +664,11 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
                         {project.code && 
                             <div className="flex items-center gap-2 justify-end mb-2">
                                 <span className="text-sm text-slate-400">Project Code: <span className="font-mono text-indigo-300">{project.code}</span></span>
-                                <button onClick={handleShareProject} className="p-1.5 bg-slate-700/50 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors" title="Copy Share Link">
-                                    <ShareIcon className="w-4 h-4" />
-                                </button>
+                                {!isDemo && 
+                                    <button onClick={handleShareProject} className="p-1.5 bg-slate-700/50 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors" title="Copy Share Link">
+                                        <ShareIcon className="w-4 h-4" />
+                                    </button>
+                                }
                                 {copyFeedback && <span className="text-xs text-green-400">{copyFeedback}</span>}
                             </div>
                         }
@@ -631,9 +681,10 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
                                 onKeyDown={handleDeadlineKeydown}
                                 className="bg-slate-700 text-white rounded-md p-1"
                                 autoFocus
+                                disabled={isDemo}
                              />
                         ) : (
-                            <div className="cursor-pointer hover:bg-slate-800/50 p-1 rounded-md" onClick={() => requireName(() => setIsEditingDeadline(true))}>
+                            <div className={`${!isDemo && 'cursor-pointer'} hover:bg-slate-800/50 p-1 rounded-md`} onClick={() => !isDemo && requireName(() => setIsEditingDeadline(true))}>
                                 <div className="text-sm text-slate-400">Project Deadline</div>
                                 {project.deadline ? (
                                     <>
@@ -647,6 +698,12 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
                         )}
                     </div>
                 </div>
+                {isDemo && 
+                    <div className="mt-4 p-3 bg-yellow-400/10 border border-yellow-400/30 text-yellow-300 rounded-lg text-sm flex items-center gap-3">
+                        <EyeIcon className="w-5 h-5"/>
+                        You are viewing a read-only demo project. To create your own, please go back to the homepage.
+                    </div>
+                }
             </header>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="md:col-span-2 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
@@ -657,9 +714,9 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
             </div>
              {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
             <div className="mb-8 flex gap-4">
-                <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors"><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
-                <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors"><span className="text-lg">✨</span> Update with Transcript</button>
-                <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50">
+                <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
+                <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
+                <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {isGeneratingUpdate ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <MessageSquareIcon className="w-5 h-5" /> }
                     Generate Slack Update
                 </button>
@@ -668,8 +725,8 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
             {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
             {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={appId} projectId={projectId} logActivity={logActivity} userName={userName} />))}</div>
-                    <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} /></div>
+                    <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={appId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} />))}</div>
+                    <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} isDemo={isDemo} /></div>
                 </div>
             )}
         </div>
@@ -746,38 +803,63 @@ const SlackUpdateModal = ({ isOpen, onClose, updateText }) => {
     );
 };
 const UpdateProjectForm = ({ onUpdate, onCancel }) => { const [transcript, setTranscript] = useState(''); const [isUpdating, setIsUpdating] = useState(false); const handleSubmit = async (e) => { e.preventDefault(); setIsUpdating(true); await onUpdate(transcript); setIsUpdating(false); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-2">Update Project with Transcript</h3><p className="text-sm text-slate-400 mb-4">Paste in a follow-up transcript. ProjectBuddy will find updates to existing tasks and add any new tasks it discovers.</p><form onSubmit={handleSubmit}><textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your follow-up meeting transcript here..." className="w-full h-48 bg-slate-700 border border-slate-600 rounded-md p-4 text-sm text-white focus:ring-2 focus:ring-indigo-500" disabled={isUpdating} /><div className="flex justify-end gap-4 mt-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50" disabled={isUpdating || !transcript.trim()}>{isUpdating ? <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>Updating...</> : <><span className="text-lg">✨</span> Update Project</>}</button></div></form></div>);};
-const ActivityLog = ({ db, appId, projectId }) => { const [activities, setActivities] = useState([]); useEffect(() => { if (!db) return; 
-    const logCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog');
-    const unsub = onSnapshot(logCollectionRef, (snap) => {
-        const fetchedActivities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        
-        fetchedActivities.sort((a, b) => {
-            const timeA = a.timestamp?.toDate() || new Date(0);
-            const timeB = b.timestamp?.toDate() || new Date(0);
-            return timeB - timeA;
-        });
+const ActivityLog = ({ db, appId, projectId, isDemo }) => { 
+    const [activities, setActivities] = useState([]); 
+    useEffect(() => { 
+        if (isDemo) {
+            setActivities([
+                { id: 1, log: '✨ Project Buddy AI created this demo project.', timestamp: { toDate: () => new Date() } },
+            ]);
+            return;
+        }
+        if (!db) return; 
+        const logCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog');
+        const q = query(logCollectionRef, orderBy('timestamp', 'desc'));
+        const unsub = onSnapshot(q, (snap) => {
+            const fetchedActivities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setActivities(fetchedActivities);
+        }); 
+        return () => unsub(); 
+    }, [db, appId, projectId, isDemo]); 
 
-        setActivities(fetchedActivities);
-    }); 
-    return () => unsub(); 
-}, [db, appId, projectId]); return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 my-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-4">Project Activity</h3><div className="space-y-3 max-h-96 overflow-y-auto pr-2">{activities.map(act => (<div key={act.id} className="text-sm border-l-2 border-slate-700 pl-3"><p className="text-slate-200 whitespace-pre-wrap">{act.log}</p><p className="text-xs text-slate-400 mt-1">{formatTimestamp(act.timestamp)}</p></div>))}</div></div>);};
-const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-indigo-500/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} />))}</div></div>);};
-const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity }) => { const [isExpanded, setIsExpanded] = useState(false); const cardRef = useRef(null); const toggleExpand = () => { if (!window.Flip) return; const state = window.Flip.getState(cardRef.current); setIsExpanded(!isExpanded); window.Flip.from(state, { duration: 0.3, ease: "power1.inOut" }); }; const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending']; const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none'; const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort(); return (<div ref={cardRef} className={`bg-white/5 border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-white/10'}`}><div className="p-4 cursor-pointer" onClick={toggleExpand}><div className="flex justify-between items-center gap-4"><div className="flex items-center flex-1 min-w-0">{deadlineStatus !== 'none' && task.status !== 'Done' && (<AlertTriangleIcon className={`w-5 h-5 mr-3 shrink-0 ${deadlineStatus === 'overdue' ? 'text-red-500' : 'text-yellow-500'}`} />)}<p className="text-slate-100 truncate">{task.title}</p></div><div className="flex items-center space-x-2 sm:space-x-4 shrink-0">{task.dueDate && <span className="text-xs text-slate-400 hidden sm:block">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-CA')}</span>}<span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span><div className="w-24 text-sm text-slate-400 flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div><ChevronDown className={`w-6 h-6 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} /></div></div></div>{isExpanded && (<div className="px-4 pb-4 border-t border-white/10"><div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4"><div><label className="block text-xs text-slate-400 mb-1">Status</label><select value={task.status} onChange={(e) => onUpdate(task.id, {status: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500">{Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}</select></div><MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} /><div><label className="block text-xs text-slate-400 mb-1">Due Date</label><input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"/></div></div><CommentSection db={db} appId={appId} projectId={projectId} taskId={taskId} currentUser={userName} logActivity={logActivity} taskTitle={task.title} /><div className="flex justify-end mt-4"><button onClick={() => onDelete(task.id, task.title)} className="flex items-center text-sm text-red-400 hover:text-red-300 transition-colors"><Trash2Icon className="w-4 h-4 mr-2" /> Delete Task</button></div></div>)}</div>);};
+    return (
+        <div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 my-8 backdrop-blur-sm">
+            <h3 className="text-lg font-bold text-white mb-4">Project Activity</h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                {activities.map(act => (
+                    <div key={act.id} className="text-sm border-l-2 border-slate-700 pl-3">
+                        <p className="text-slate-200 whitespace-pre-wrap">{act.log}</p>
+                        <p className="text-xs text-slate-400 mt-1">{formatTimestamp(act.timestamp)}</p>
+                    </div>
+                ))}
+                {isDemo && <div className="text-sm text-slate-400 pl-3 pt-2 border-t border-slate-700 mt-3">Activity is disabled for demo projects.</div>}
+            </div>
+        </div>
+    );
+};
+const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-indigo-500/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} />))}</div></div>);};
+const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo }) => { const [isExpanded, setIsExpanded] = useState(false); const cardRef = useRef(null); const toggleExpand = () => { if (!window.Flip) return; const state = window.Flip.getState(cardRef.current); setIsExpanded(!isExpanded); window.Flip.from(state, { duration: 0.3, ease: "power1.inOut" }); }; const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending']; const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none'; const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort(); return (<div ref={cardRef} className={`bg-white/5 border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-white/10'}`}><div className="p-4 cursor-pointer" onClick={toggleExpand}><div className="flex justify-between items-center gap-4"><div className="flex items-center flex-1 min-w-0">{deadlineStatus !== 'none' && task.status !== 'Done' && (<AlertTriangleIcon className={`w-5 h-5 mr-3 shrink-0 ${deadlineStatus === 'overdue' ? 'text-red-500' : 'text-yellow-500'}`} />)}<p className="text-slate-100 truncate">{task.title}</p></div><div className="flex items-center space-x-2 sm:space-x-4 shrink-0">{task.dueDate && <span className="text-xs text-slate-400 hidden sm:block">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-CA')}</span>}<span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span><div className="w-24 text-sm text-slate-400 flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div><ChevronDown className={`w-6 h-6 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} /></div></div></div>{isExpanded && (<div className="px-4 pb-4 border-t border-white/10"><div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4"><div><label className="block text-xs text-slate-400 mb-1">Status</label><select value={task.status} onChange={(e) => onUpdate(task.id, {status: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed" disabled={isDemo}>{Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}</select></div><MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} /><div><label className="block text-xs text-slate-400 mb-1">Due Date</label><input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed" disabled={isDemo} /></div></div><CommentSection db={db} appId={appId} projectId={projectId} taskId={taskId} currentUser={userName} logActivity={logActivity} taskTitle={task.title} isDemo={isDemo} /><div className="flex justify-end mt-4"><button onClick={() => onDelete(task.id, task.title)} className="flex items-center text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><Trash2Icon className="w-4 h-4 mr-2" /> Delete Task</button></div></div>)}</div>);};
 const AddTaskForm = ({ onAddTask, categories, team, onCancel }) => { const [title, setTitle] = useState(''); const [category, setCategory] = useState(categories[0] || 'Uncategorized'); const [owners, setOwners] = useState(team[0] ? [team[0]] : []); const [dueDate, setDueDate] = useState(''); const [newCategory, setNewCategory] = useState(''); const [newOwner, setNewOwner] = useState(''); const handleSubmit = (e) => { e.preventDefault(); if (!title.trim()) return; const finalCategory = category === '---new---' ? newCategory.trim() : category; let finalOwners = owners; if (newOwner.trim()) { finalOwners = [...finalOwners, newOwner.trim()]; } if (!finalCategory || finalOwners.length === 0) { alert("Please ensure category and owner are set."); return; } onAddTask({ title: title.trim(), category: finalCategory, owner: finalOwners, dueDate, status: 'Pending' }); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-4">Add New Task</h3><form onSubmit={handleSubmit}><div className="mb-4"><label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">Task Title</label><input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Category / Section</label><select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)} <option value="---new---">-- Add New Category --</option></select>{category === '---new---' && (<input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />)}</div><MultiSelectOwner owners={owners} allOwners={[...team, newOwner.trim()].filter(Boolean)} onUpdate={setOwners} isNewTask={true} newOwner={newOwner} setNewOwner={setNewOwner} /><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Date</label><input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"/></div></div><div className="flex justify-end gap-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500">Add Task</button></div></form></div>);};
-const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity, taskTitle }) => { 
+const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity, taskTitle, isDemo }) => { 
     const [comments, setComments] = useState([]); 
     const [newComment, setNewComment] = useState(''); 
     useEffect(() => { 
+        if (isDemo) {
+            setComments([
+                { id: 1, text: 'This is a comment on a task in the demo project.', author: 'Alice', timestamp: { toDate: () => new Date() } },
+            ]);
+            return;
+        }
         if (!db || !taskId || !projectId) return; 
         const commentsQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments'), orderBy('timestamp', 'asc')); 
         const unsubscribe = onSnapshot(commentsQuery, (snapshot) => { setComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); }); 
         return () => unsubscribe(); 
-    }, [db, appId, projectId, taskId]); 
+    }, [db, appId, projectId, taskId, isDemo]); 
     
     const handleAddComment = async (e) => { 
         e.preventDefault(); 
         const trimmedComment = newComment.trim();
-        if (!trimmedComment || !db) return; 
+        if (isDemo || !trimmedComment || !db) return; 
         const commentsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments'); 
         await addDoc(commentsCollectionRef, { text: trimmedComment, author: currentUser || 'Guest', timestamp: serverTimestamp() }); 
         if (logActivity) {
@@ -798,13 +880,13 @@ const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity
                 ))}
             </div>
             <form onSubmit={handleAddComment} className="flex gap-2">
-                <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment..." className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />
-                <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50" disabled={!newComment.trim() || !currentUser}>Send</button>
+                <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder={isDemo ? "Commenting is disabled in demo mode" : "Add a comment..."} className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed" disabled={isDemo || !currentUser} />
+                <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo || !newComment.trim() || !currentUser}>Send</button>
             </form>
         </div>
     );
 };
-const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, setNewOwner }) => { const [isOpen, setIsOpen] = useState(false); const wrapperRef = useRef(null); useEffect(() => { function handleClickOutside(event) { if (wrapperRef.current && !wrapperRef.current.contains(event.target)) { setIsOpen(false); } } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [wrapperRef]); const handleOwnerChange = (owner, checked) => { const newOwners = checked ? [...owners, owner] : owners.filter(o => o !== owner); onUpdate(newOwners); }; return (<div><label className="block text-xs text-slate-400 mb-1">Owner(s)</label><div ref={wrapperRef} className="relative"><button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white text-left flex justify-between items-center">
+const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, setNewOwner, isDemo }) => { const [isOpen, setIsOpen] = useState(false); const wrapperRef = useRef(null); useEffect(() => { function handleClickOutside(event) { if (wrapperRef.current && !wrapperRef.current.contains(event.target)) { setIsOpen(false); } } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [wrapperRef]); const handleOwnerChange = (owner, checked) => { const newOwners = checked ? [...owners, owner] : owners.filter(o => o !== owner); onUpdate(newOwners); }; return (<div><label className="block text-xs text-slate-400 mb-1">Owner(s)</label><div ref={wrapperRef} className="relative"><button type="button" onClick={() => !isDemo && setIsOpen(!isOpen)} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white text-left flex justify-between items-center disabled:cursor-not-allowed" disabled={isDemo}>
   <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
   {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-slate-700 cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
     <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-slate-700 border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-indigo-500"/></div>)}</div>)}</div></div>);};
