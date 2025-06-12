@@ -1,0 +1,9 @@
+[build]
+  # This is the path to your project's folder, from the root of the repo
+  base = "ProjectBuddy-fd7cc18f6d5cb83bcca65fca61ff128feaa2bf8e"
+
+  # This is the build command we configured earlier
+  command = "npm run build"
+
+  # This is the folder that gets created by the build command
+  publish = "build"
