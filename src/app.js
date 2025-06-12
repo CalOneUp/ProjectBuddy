@@ -56,14 +56,8 @@ export default function App() {
     
     // Initialize Firebase
     useEffect(() => {
-        const firebaseConfig = {
-          apiKey: "AIzaSyCh-P92q7gdoicvkCS-4Sym6aAOGSRyFU4",
-          authDomain: "projectbuddy-43c48.firebaseapp.com",
-          projectId: "projectbuddy-43c48",
-          storageBucket: "projectbuddy-43c48.appspot.com",
-          messagingSenderId: "1095610217794",
-          appId: "1:1095610217794:web:0d8646f27d357e707604db"
-        };
+        // Parse the Firebase config from the environment variable
+        const firebaseConfig = JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG);
         
         try {
             const app = initializeApp(firebaseConfig);
@@ -193,7 +187,7 @@ const HomePage = ({ db, appId, navigate }) => {
         }
         ---
 
-        **CRITICAL RULE**: The final output MUST be a single, valid JSON object and nothing else. Do not include any text or formatting before or after the JSON object. Do not use double quotes (") inside any string values; you MUST escape them with a backslash (\\\\").
+        **CRITICAL RULE**: The final output MUST be a single, valid JSON object and nothing else. Do not include any text or formatting before or after the JSON object. Do not use double quotes (") inside any string values; you MUST escape them with a backslash (\\").
 
         **Transcript to Analyze:**
         ---
@@ -203,7 +197,7 @@ const HomePage = ({ db, appId, navigate }) => {
         const generationConfig = { responseMimeType: "application/json", responseSchema: { type: 'OBJECT', properties: { projectName: { type: 'STRING' }, projectDeadline: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format.' }, tasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, owner: { type: 'ARRAY', items: { type: 'STRING' } }, category: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] }, dueDate: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format. Can be an empty string.' } } } } } } };
         
         try {
-            const apiKey = "AIzaSyBXs2tz6mecFwCoY6Z1Qh1n0xljPn7jcHo";
+            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig };
             
@@ -474,7 +468,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
         const prompt = `You are an intelligent project management assistant. Analyze the provided "New Transcript" in the context of the "Existing Task List". Your goal is to identify both brand new tasks and updates to existing tasks. IMPORTANT: In all generated text content (like task titles or comments), do not use double quotes ("). Use single quotes (') or other symbols instead.\n\n**Existing Task List:**\n${existingTasksString}\n\n**New Transcript:**\n---\n${newTranscript}\n---\n\nBased on your analysis, return a single JSON object with two keys: "newTasks" and "taskUpdates".\n\n1.  **newTasks**: An array of task objects for action items mentioned in the transcript that are NOT on the existing list. Each owner property should be an array of strings.\n2.  **taskUpdates**: An array of objects for existing tasks that have updates mentioned in the transcript. Each object should contain the 'title' of the existing task to update, a 'comment' summarizing the update, and a new 'status' if the transcript implies a change (e.g., from 'Pending' to 'In Progress').\n\nIf no new tasks are found, "newTasks" should be an empty array.\nIf no updates are found, "taskUpdates" should be an empty array.`;
         const generationConfig = { responseMimeType: "application/json", responseSchema: { type: 'OBJECT', properties: { newTasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, owner: { type: 'ARRAY', items: { type: 'STRING' } }, category: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] }, dueDate: { type: 'STRING' } } } }, taskUpdates: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, comment: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] } } } } } } };
         try { 
-            const apiKey = "AIzaSyBXs2tz6mecFwCoY6Z1Qh1n0xljPn7jcHo"; 
+            const apiKey = process.env.REACT_APP_GEMINI_API_KEY; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig }; 
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
@@ -548,7 +542,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
         `;
 
         try {
-            const apiKey = "AIzaSyBXs2tz6mecFwCoY6Z1Qh1n0xljPn7jcHo";
+            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
