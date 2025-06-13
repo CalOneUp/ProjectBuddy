@@ -191,16 +191,16 @@ const HomePage = ({ db, appId, navigate }) => {
         const attendeesListString = attendees.length > 0 ? attendees.join(', ') : 'Not specified';
 
         const prompt = `
-        You are a hyper-intelligent and meticulous project management assistant. Your single most important goal is to convert a meeting transcript into a perfectly structured, actionable JSON object. Failure to produce valid, concise JSON is not an option.
+        You are an expert project management assistant. Your primary goal is to analyze a meeting transcript and convert it into a structured, actionable JSON object. You must be meticulous and follow all rules without fail.
 
         **CRITICAL DIRECTIVES:**
         1.  **VALID JSON ONLY:** Your entire response MUST be a single, raw JSON object. Do not include any conversational text, notes, or markdown like \`\`\`json before or after the JSON.
-        2.  **SUMMARIZE TASK TITLES:** Task titles are the most critical field. They MUST be short, clear action items, **15 words or less**.
-            - **CORRECT EXAMPLE**: "Finalize Q3 marketing report and send for approval"
-            - **INCORRECT EXAMPLE**: "So, about the marketing report, we need to finalize it. I think it's mostly done but we should probably get it sent over to the team for approval by the end of the day if possible."
-        3.  **NO VERBATIM COPYING:** Never copy long, repetitive sentences from the transcript into any field, especially the title. This is a critical failure. Always summarize.
-        4.  **COMBINE DUPLICATE TASKS:** If the same action item is mentioned multiple times, create only ONE task for it. Consolidate the information.
-
+        2.  **DEDUPLICATE AGGRESSIVELY:** This is your most important task. If the same action item is mentioned multiple times, even with slightly different wording, you MUST create only ONE task for it. Merge the context from all mentions into a single, clear action item.
+        3.  **SUMMARIZE TASK TITLES:** Task titles MUST be short, clear action items, **15 words or less**. 
+            - **GOOD EXAMPLE**: "Finalize Q3 marketing report and send for approval"
+            - **BAD EXAMPLE**: "So, about the marketing report, we need to finalize it. I think it's mostly done but we should probably get it sent over to the team for approval by the end of the day if possible."
+        4.  **NO VERBATIM COPYING:** Never copy long, repetitive sentences from the transcript into any field. This is a critical failure. Always summarize.
+        
         **CONTEXT FOR YOUR ANALYSIS:**
         - **Today's Date**: ${dayOfWeek}, ${formattedDate}. Use this for calculating relative dates (e.g., 'next Friday').
         - **Meeting Attendees**: ${attendeesListString}. Use this list to help determine task owners.
