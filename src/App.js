@@ -78,13 +78,15 @@ const useToast = () => React.useContext(ToastContext);
 
 const ToastProvider = ({ children }) => {
     const [toasts, setToasts] = useState([]);
-    const addToast = (message) => {
+    
+    // FIX: Wrap addToast in useCallback to ensure it has a stable reference
+    const addToast = React.useCallback((message) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, message }]);
         setTimeout(() => {
             setToasts(prev => prev.filter(toast => toast.id !== id));
         }, 5000);
-    };
+    }, []); // Empty dependency array ensures the function is created only once
 
     return (
         <ToastContext.Provider value={{ addToast }}>
@@ -100,7 +102,6 @@ const ToastProvider = ({ children }) => {
         </ToastContext.Provider>
     );
 };
-
 
 // --- Main App Component ---
 export default function App() {
