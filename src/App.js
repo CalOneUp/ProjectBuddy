@@ -61,6 +61,29 @@ export default function App() {
         setRoute({ page, projectId });
     };
 
+    // This hook prevents the backspace key from triggering browser navigation
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Check if the backspace key was pressed
+            if (e.key === 'Backspace') {
+                const target = e.target;
+                // Allow backspace in inputs and textareas
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                // Prevent default browser action (navigation) for all other cases
+                e.preventDefault();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+
+        // Cleanup the event listener on component unmount
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []); // Empty dependency array ensures this runs only once
+
     // This hook runs once on initial load to check for a shared project ID in the URL
     useEffect(() => {
         const queryParams = new URLSearchParams(window.location.search);
@@ -162,13 +185,13 @@ const HomePage = ({ db, appId, navigate }) => {
 
         **Instructions:**
         1.  **projectName**: Create a short, descriptive name for the overall project.
-        2.  **projectDeadline**: Find the overall project deadline. If it's a relative date (e.g., 'end of next month'), calculate the specific date iniado-MM-DD format.
+        2.  **projectDeadline**: Find the overall project deadline. If it's a relative date (e.g., 'end of next month'), calculate the specific date in YYYY-MM-DD format.
         3.  **tasks**: This must be an array of task objects. **Do not skip any tasks mentioned.**
             * **title**: Each title must be a concise, clear action item, **under 15 words**. Start with a verb. Do NOT just copy long sentences from the transcript. You MUST summarize the core action.
             * **owner**: This MUST be a JSON array of strings. Identify the person(s) responsible. If a specific name is mentioned, use it. If multiple people are mentioned for one task, include them all in the array. If no specific person is mentioned, you MUST use 'Unassigned'. **Do not leave this field empty.**
             * **category**: Assign a logical category like 'Marketing', 'Development', 'Design', or 'Admin'.
             * **status**: Set to 'Pending' by default. Only use 'In Progress' or 'Done' if the transcript explicitly states it.
-            * **dueDate**: Find the task's due date. If it's a relative date (e.g., 'next Friday'), calculate the specific date iniado-MM-DD format. If no date is mentioned, use an empty string "".
+            * **dueDate**: Find the task's due date. If it's a relative date (e.g., 'next Friday'), calculate the specific date in YYYY-MM-DD format. If no date is mentioned, use an empty string "".
 
         **IMPORTANT CONTEXT**: Today is ${dayOfWeek}, ${formattedDate}. Use this to calculate relative dates.
 
@@ -686,7 +709,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
                             ) : (
                                 <span
                                     className={`text-indigo-400 ${!isDemo && 'cursor-pointer hover:underline'}`}
-                                    onClick={() => !isDemo && requireName(() => setIsEditingName(true))}
+                                    onClick={() => { if (!isDemo) requireName(() => setIsEditingName(true)) }}
                                 >
                                     {project.name}
                                 </span>
@@ -718,7 +741,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
                                 disabled={isDemo}
                              />
                         ) : (
-                            <div className={`${!isDemo && 'cursor-pointer'} hover:bg-slate-800/50 p-1 rounded-md`} onClick={() => !isDemo && requireName(() => setIsEditingDeadline(true))}>
+                            <div className={`${!isDemo && 'cursor-pointer'} hover:bg-slate-800/50 p-1 rounded-md`} onClick={() => { if (!isDemo) requireName(() => setIsEditingDeadline(true)) } }>
                                 <div className="text-sm text-slate-400">Project Deadline</div>
                                 {project.deadline ? (
                                     <>
