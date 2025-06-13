@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where } from 'firebase/firestore';
 
@@ -20,9 +20,6 @@ const EyeIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" h
 const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
 const DEMO_PROJECT_ID = 'demo-project-123';
 
-// --- Word list for project code generation ---
-const WORDS = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'kiwi', 'lemon', 'mango', 'nectarine', 'orange', 'papaya', 'quince', 'raspberry', 'strawberry', 'tangerine', 'ugli', 'watermelon', 'zucchini', 'purple', 'monkey', 'dishwasher', 'rocket', 'planet', 'star', 'galaxy', 'comet', 'nebula', 'orbit', 'lunar', 'solar', 'astral'];
-
 // --- Utility Functions ---
 const getDeadlineStatus = (dueDate) => {
     if (!dueDate) return 'none';
@@ -42,13 +39,6 @@ const getDaysRemaining = (deadline) => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 const formatTimestamp = (firebaseTimestamp) => { if (!firebaseTimestamp?.toDate) return 'Just now'; return firebaseTimestamp.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }); };
-const generateProjectCode = () => {
-    const code = [];
-    for (let i = 0; i < 3; i++) {
-        code.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
-    }
-    return code.join('.');
-};
 
 // --- Meta Tag Management Functions ---
 const defaultTitle = "Project Buddy | Turn Meetings into Actionable Projects";
@@ -79,14 +69,14 @@ const useToast = () => React.useContext(ToastContext);
 const ToastProvider = ({ children }) => {
     const [toasts, setToasts] = useState([]);
     
-    // FIX: Wrap addToast in useCallback to ensure it has a stable reference
-    const addToast = React.useCallback((message) => {
+    // FIX: Wrap addToast in useCallback to ensure it has a stable reference, preventing re-render loops.
+    const addToast = useCallback((message) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, message }]);
         setTimeout(() => {
             setToasts(prev => prev.filter(toast => toast.id !== id));
         }, 5000);
-    }, []); // Empty dependency array ensures the function is created only once
+    }, []); // Empty dependency array ensures the function is created only once.
 
     return (
         <ToastContext.Provider value={{ addToast }}>
@@ -102,6 +92,7 @@ const ToastProvider = ({ children }) => {
         </ToastContext.Provider>
     );
 };
+
 
 // --- Main App Component ---
 export default function App() {
@@ -217,6 +208,43 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
     const [recentProjects, setRecentProjects] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    
+    // --- NEW: State and fetching for the expanded word list ---
+    const [wordList, setWordList] = useState([]);
+    const fallbackWords = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'kiwi', 'lemon', 'mango', 'nectarine', 'orange', 'papaya', 'quince', 'raspberry', 'strawberry', 'tangerine', 'ugli', 'watermelon', 'zucchini', 'purple', 'monkey', 'dishwasher', 'rocket', 'planet', 'star', 'galaxy', 'comet', 'nebula', 'orbit', 'lunar', 'solar', 'astral'];
+
+    useEffect(() => {
+        // Fetch the large word list from an external source
+        fetch('https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(text => {
+                // Split the text into an array of words and filter them for quality.
+                // We'll keep words between 4 and 7 letters to ensure they are memorable.
+                const words = text.split('\n').filter(word => word.length >= 4 && word.length <= 7);
+                setWordList(words);
+            })
+            .catch(error => {
+                console.error("Failed to fetch word list, using fallback:", error);
+                // If fetching fails, we'll just use the original list
+                setWordList([]); 
+            });
+    }, []); // The empty dependency array ensures this runs only once on mount.
+    
+    // --- MODIFIED: Project code generation now uses the new list ---
+    const generateProjectCode = () => {
+        // Use the fetched word list if available, otherwise use the smaller fallback list.
+        const listToUse = wordList.length > 0 ? wordList : fallbackWords;
+        const code = [];
+        for (let i = 0; i < 3; i++) {
+            code.push(listToUse[Math.floor(Math.random() * listToUse.length)]);
+        }
+        return code.join('.');
+    };
 
     useEffect(() => {
         setRecentProjects(recentProjectsManager.get());
