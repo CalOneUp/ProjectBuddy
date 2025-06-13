@@ -186,42 +186,16 @@ const HomePage = ({ db, appId, navigate }) => {
         **Instructions:**
         1.  **projectName**: Create a short, descriptive name for the overall project.
         2.  **projectDeadline**: Find the overall project deadline. If it's a relative date (e.g., 'end of next month'), calculate the specific date in YYYY-MM-DD format.
-        3.  **tasks**: This must be an array of task objects. **Do not skip any tasks mentioned.**
-            * **title**: Each title must be a concise, clear action item, **under 15 words**. Start with a verb. Do NOT just copy long sentences from the transcript. You MUST summarize the core action.
-            * **owner**: This MUST be a JSON array of strings. Identify the person(s) responsible. If a specific name is mentioned, use it. If multiple people are mentioned for one task, include them all in the array. If no specific person is mentioned, you MUST use 'Unassigned'. **Do not leave this field empty.**
+        3.  **tasks**: This must be an array of task objects.
+            * **title**: This is the most important rule. The title MUST be a concise, clear action item. It MUST be under 15 words. DO NOT just copy long sentences from the transcript. You MUST summarize the core action. If you cannot create a short title, you must refuse to create the task.
+            * **owner**: This MUST be a JSON array of strings. Identify the person(s) responsible. If no specific person is mentioned, you MUST use 'Unassigned'.
             * **category**: Assign a logical category like 'Marketing', 'Development', 'Design', or 'Admin'.
-            * **status**: Set to 'Pending' by default. Only use 'In Progress' or 'Done' if the transcript explicitly states it.
-            * **dueDate**: Find the task's due date. If it's a relative date (e.g., 'next Friday'), calculate the specific date in YYYY-MM-DD format. If no date is mentioned, use an empty string "".
+            * **status**: Set to 'Pending' by default.
+            * **dueDate**: Find the task's due date in YYYY-MM-DD format. If no date is mentioned, use an empty string "".
 
         **IMPORTANT CONTEXT**: Today is ${dayOfWeek}, ${formattedDate}. Use this to calculate relative dates.
 
-        **EXAMPLE:**
-        ---
-        **Input Transcript:** "Okay team, we need to launch the new website. Sarah, can you handle the design by next Friday? And Tom, the backend needs to be ready by the end of the month. The full launch is aimed for July 15th."
-        **Output JSON:**
-        {
-          "projectName": "New Website Launch",
-          "projectDeadline": "${new Date(today.getFullYear(), 6, 15).toISOString().split('T')[0]}",
-          "tasks": [
-            {
-              "title": "Finalize website design mockups",
-              "owner": ["Sarah"],
-              "category": "Design",
-              "status": "Pending",
-              "dueDate": "${new Date(today.getFullYear(), today.getMonth(), today.getDate() + (5 - today.getDay() + 7) % 7).toISOString().split('T')[0]}"
-            },
-            {
-              "title": "Complete backend development",
-              "owner": ["Tom"],
-              "category": "Development",
-              "status": "Pending",
-              "dueDate": "${new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]}"
-            }
-          ]
-        }
-        ---
-
-        **CRITICAL RULE**: The final output MUST be a single, valid JSON object and nothing else. Do not include any text or formatting before or after the JSON object. Do not use double quotes (") inside any string values; you MUST escape them with a backslash (\\").
+        **CRITICAL RULE**: The final output MUST be a single, valid JSON object and nothing else. Do not include any text, notes, or formatting before or after the JSON object.
 
         **Transcript to Analyze:**
         ---
@@ -286,8 +260,8 @@ const HomePage = ({ db, appId, navigate }) => {
         } catch (e) {
             console.error("GENERATION FAILED:", e);
             if (e instanceof SyntaxError) {
-                // If JSON parsing fails, show the problematic text from the AI
-                setError(`Error: The AI's response was not valid JSON. Please try again. Raw AI response: "${geminiText}"`);
+                // If JSON parsing fails, show a more descriptive error with the raw text.
+                setError(`Error: The AI's response was not valid. This can happen with complex transcripts. Please try simplifying the transcript. Raw AI response: "${geminiText}"`);
             } else {
                 setError(`An error occurred: ${e.message}`);
             }
@@ -333,7 +307,7 @@ const HomePage = ({ db, appId, navigate }) => {
             <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl mb-6">
                 <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started..." className="w-full h-64 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isGenerating}/>
                 <div className="mt-4 flex justify-end items-center">
-                    {error && !isGenerating && <p className="text-sm text-red-400 mr-4">{error}</p>}
+                    {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
                     <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
                         {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
                     </button>
