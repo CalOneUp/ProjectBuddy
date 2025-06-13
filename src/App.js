@@ -180,27 +180,51 @@ const HomePage = ({ db, appId, navigate }) => {
         const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
 
+        // Extract attendees from the transcript if provided
+        let attendees = [];
+        const transcriptLines = transcript.split('\n');
+        const attendeesIndex = transcriptLines.findIndex(line => line.toLowerCase().startsWith('attendees:'));
+        if (attendeesIndex !== -1) {
+            let i = attendeesIndex + 1;
+            while(i < transcriptLines.length && transcriptLines[i].trim() !== '') {
+                const line = transcriptLines[i].trim();
+                const match = line.match(/^(.*?)\s*\(/); // Extract name before parenthesis (e.g., "Sarah Chen (SC)")
+                if (match) {
+                    attendees.push(match[1].trim());
+                } else if (line) {
+                    attendees.push(line);
+                }
+                i++;
+            }
+        }
+        const attendeesListString = attendees.length > 0 ? attendees.join(', ') : 'Not specified';
+
         const prompt = `
-        You are an expert project management assistant. Your primary goal is to analyze a meeting transcript and convert it into a structured, actionable JSON object.
+        You are a hyper-intelligent and meticulous project management assistant. Your single most important goal is to convert a meeting transcript into a perfectly structured, actionable JSON object. Failure to produce valid, concise JSON is not an option.
 
-        **CRITICAL RULES FOR OUTPUT:**
-        1.  The final output MUST be a single, valid JSON object. Do not include any text, notes, or markdown formatting like \`\`\`json before or after the JSON.
-        2.  For each task, the 'title' field is the most important. It MUST be a short, summarized action item, **15 words or less**.
-            - **GOOD EXAMPLE**: "Finalize and order wrapper design"
-            - **BAD EXAMPLE**: "Finalize the wrapper design and order the initial batch. Lead times are always a concern there. The design is approved. We sent it over to procurement last week."
-        3.  NEVER copy and paste long sentences from the transcript into the title. ALWAYS summarize the core task. If you cannot create a short, summarized title, do not include the task.
+        **CRITICAL DIRECTIVES:**
+        1.  **VALID JSON ONLY:** Your entire response MUST be a single, raw JSON object. Do not include any conversational text, notes, or markdown like \`\`\`json before or after the JSON.
+        2.  **SUMMARIZE TASK TITLES:** Task titles are the most critical field. They MUST be short, clear action items, **15 words or less**.
+            - **CORRECT EXAMPLE**: "Finalize and order new sandwich wrapper"
+            - **INCORRECT EXAMPLE**: "Finalize the wrapper design and order the initial batch. Lead times are always a concern there. The design is approved, David. We sent it over to procurement last week. They're handling the initial order."
+        3.  **NO VERBATIM COPYING:** Never copy long, repetitive sentences from the transcript into any field, especially the title. This is a critical failure. Always summarize.
+        4.  **COMBINE DUPLICATE TASKS:** If the same action item is mentioned multiple times, create only ONE task for it. Consolidate the information.
 
-        **JSON Structure Instructions:**
-        - **projectName**: Create a short, descriptive name for the overall project.
-        - **projectDeadline**: Find the overall project deadline. If it's a relative date (e.g., 'end of next month'), calculate the specific date in YYYY-MM-DD format. Today's date is ${dayOfWeek}, ${formattedDate}.
+        **CONTEXT FOR YOUR ANALYSIS:**
+        - **Today's Date**: ${dayOfWeek}, ${formattedDate}. Use this for calculating relative dates (e.g., 'next Friday').
+        - **Meeting Attendees**: ${attendeesListString}. Use this list to help determine task owners.
+
+        **JSON STRUCTURE & RULES:**
+        - **projectName**: A short, descriptive name for the overall project.
+        - **projectDeadline**: The overall project deadline in YYYY-MM-DD format.
         - **tasks**: An array of task objects. For each task:
-            - **title**: The summarized action item (15 words or less).
-            - **owner**: A JSON array of strings (e.g., ["Sarah"], ["Tom", "Alice"]). Use ["Unassigned"] if no one is mentioned.
-            - **category**: A logical category (e.g., 'Marketing', 'Development', 'Design').
-            - **status**: Default to 'Pending'.
+            - **title**: The summarized action item (MUST be 15 words or less).
+            - **owner**: A JSON array of strings. Look for names from the **Meeting Attendees** list who are responsible for the task. If multiple people are responsible, include all of them (e.g., ["Chloe", "Mark"]). If no specific person is mentioned, use ["Unassigned"].
+            - **category**: A logical category (e.g., 'Marketing', 'Development', 'Design', 'Operations', 'Supply Chain').
+            - **status**: Default to 'Pending' unless the transcript explicitly says it is 'In Progress' or 'Done'.
             - **dueDate**: The task's due date in YYYY-MM-DD format. Use an empty string "" if not mentioned.
 
-        **Analyze the following transcript:**
+        **Analyze the following transcript and generate the JSON object:**
         ---
         ${transcript}
         ---
