@@ -171,51 +171,54 @@ const HomePage = ({ db, appId, navigate }) => {
         const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
 
-        // Extract attendees from the transcript if provided
+        // Smartly extract attendees from the transcript
         let attendees = [];
         const transcriptLines = transcript.split('\n');
-        const attendeesIndex = transcriptLines.findIndex(line => line.toLowerCase().startsWith('attendees:'));
-        if (attendeesIndex !== -1) {
-            let i = attendeesIndex + 1;
-            while(i < transcriptLines.length && transcriptLines[i].trim() !== '') {
-                const line = transcriptLines[i].trim();
-                const match = line.match(/^(.*?)\s*\(/); // Extract name before parenthesis (e.g., "Sarah Chen (SC)")
-                if (match) {
-                    attendees.push(match[1].trim());
-                } else if (line) {
-                    attendees.push(line);
-                }
-                i++;
+        const attendeesRegex = /attendees:([\s\S]*?)(?=\n\n|\n[A-Z\s]+:|$)/i;
+        const attendeesMatch = transcript.match(attendeesRegex);
+        if (attendeesMatch) {
+            attendees = attendeesMatch[1].split('\n').map(name => name.trim().replace(/ \(.*/, '')).filter(Boolean);
+        } else {
+            const speakerRegex = /^([A-Za-z\s]+)\s*(?:\(.*\))?:/gm;
+            let match;
+            while ((match = speakerRegex.exec(transcript)) !== null) {
+                attendees.push(match[1].trim());
             }
+            attendees = [...new Set(attendees)]; // Get unique names
         }
         const attendeesListString = attendees.length > 0 ? attendees.join(', ') : 'Not specified';
 
         const prompt = `
-        You are an expert project management assistant. Your primary goal is to analyze a meeting transcript and convert it into a structured, actionable JSON object. You must be meticulous and follow all rules without fail.
+        You are a project management expert. Your task is to analyze a meeting transcript and convert it into a structured JSON object of actionable tasks.
 
-        **CRITICAL DIRECTIVES:**
-        1.  **VALID JSON ONLY:** Your entire response MUST be a single, raw JSON object. Do not include any conversational text, notes, or markdown like \`\`\`json before or after the JSON.
-        2.  **DEDUPLICATE AGGRESSIVELY:** This is your most important task. If the same action item is mentioned multiple times, even with slightly different wording, you MUST create only ONE task for it. Merge the context from all mentions into a single, clear action item.
-        3.  **SUMMARIZE TASK TITLES:** Task titles MUST be short, clear action items, **15 words or less**. 
-            - **GOOD EXAMPLE**: "Finalize Q3 marketing report and send for approval"
-            - **BAD EXAMPLE**: "So, about the marketing report, we need to finalize it. I think it's mostly done but we should probably get it sent over to the team for approval by the end of the day if possible."
-        4.  **NO VERBATIM COPYING:** Never copy long, repetitive sentences from the transcript into any field. This is a critical failure. Always summarize.
+        **Primary Goal:** Create a comprehensive list of all action items, decisions, and commitments from the transcript. Do not miss any.
+
+        **Critical Rules:**
+        1.  **JSON Output Only**: Your entire response MUST be a single, raw JSON object. Do not include any text before or after it.
+        2.  **Deduplicate Tasks**: If the same action is discussed multiple times, create only ONE task. Combine the context. For example, if "Mark needs to check the budget" and "Mark will get back to us on the budget numbers" are mentioned, create a single task: "Check budget and report back".
+        3.  **Create Concise Titles**: Task titles must be short, clear action items. Start with a verb.
+        4.  **Identify Owners**: A task owner is the person responsible for the action. Review the conversation to determine who this is. Use the provided "Meeting Attendees" list as a reference. If a speaker commits to an action (e.g., "I'll handle that"), they are the owner.
         
-        **CONTEXT FOR YOUR ANALYSIS:**
-        - **Today's Date**: ${dayOfWeek}, ${formattedDate}. Use this for calculating relative dates (e.g., 'next Friday').
-        - **Meeting Attendees**: ${attendeesListString}. Use this list to help determine task owners.
+        **Context:**
+        - Today's Date: ${dayOfWeek}, ${formattedDate}.
+        - Meeting Attendees: ${attendeesListString}.
 
-        **JSON STRUCTURE & RULES:**
-        - **projectName**: A short, descriptive name for the overall project.
-        - **projectDeadline**: The overall project deadline in YYYY-MM-DD format.
-        - **tasks**: An array of task objects. For each task:
-            - **title**: The summarized action item (MUST be 15 words or less).
-            - **owner**: A JSON array of strings. Look for names from the **Meeting Attendees** list who are responsible for the task. If multiple people are responsible, include all of them (e.g., ["Chloe", "Mark"]). If no specific person is mentioned, use ["Unassigned"].
-            - **category**: A logical category (e.g., 'Marketing', 'Development', 'Design', 'Operations', 'Supply Chain').
-            - **status**: Default to 'Pending' unless the transcript explicitly says it is 'In Progress' or 'Done'.
-            - **dueDate**: The task's due date in YYYY-MM-DD format. Use an empty string "" if not mentioned.
+        **JSON Structure:**
+        {
+          "projectName": "A short, descriptive name for the overall project.",
+          "projectDeadline": "YYYY-MM-DD or empty string",
+          "tasks": [
+            {
+              "title": "Concise, verb-first action item.",
+              "owner": ["Name"],
+              "category": "Logical category (e.g., Marketing, Development, Design, Operations).",
+              "status": "Pending",
+              "dueDate": "YYYY-MM-DD or empty string"
+            }
+          ]
+        }
 
-        **Analyze the following transcript and generate the JSON object:**
+        **Analyze the following transcript:**
         ---
         ${transcript}
         ---
@@ -225,7 +228,7 @@ const HomePage = ({ db, appId, navigate }) => {
         let geminiText = ''; // Declare geminiText here to access it in the catch block
         try {
             const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig };
             
             const apiResponse = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -540,7 +543,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
         const generationConfig = { responseMimeType: "application/json", responseSchema: { type: 'OBJECT', properties: { newTasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, owner: { type: 'ARRAY', items: { type: 'STRING' } }, category: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] }, dueDate: { type: 'STRING' } } } }, taskUpdates: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, comment: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] } } } } } } };
         try {
             const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API call failed: ${response.status}`);
@@ -628,7 +631,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
     
         try {
             const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error("Failed to generate update.");
