@@ -50,11 +50,64 @@ const generateProjectCode = () => {
     return code.join('.');
 };
 
+// --- Meta Tag Management Functions ---
+const defaultTitle = "Project Buddy | Turn Meetings into Actionable Projects";
+const defaultDescription = "Stop letting action items get lost. Project Buddy uses AI to analyze your meeting transcripts and instantly create a collaborative project plan. Paste a transcript to get started.";
+
+const updateMetaTags = (title, description) => {
+    document.title = title;
+    document.querySelector('meta[name="description"]')?.setAttribute("content", description);
+    document.querySelector('meta[property="og:title"]')?.setAttribute("content", title);
+    document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
+    document.querySelector('meta[property="twitter:title"]')?.setAttribute("content", title);
+    document.querySelector('meta[property="twitter:description"]')?.setAttribute("content", description);
+};
+
+const resetMetaTags = () => {
+    document.title = defaultTitle;
+    document.querySelector('meta[name="description"]')?.setAttribute("content", defaultDescription);
+    document.querySelector('meta[property="og:title"]')?.setAttribute("content", defaultTitle);
+    document.querySelector('meta[property="og:description"]')?.setAttribute("content", defaultDescription);
+    document.querySelector('meta[property="twitter:title"]')?.setAttribute("content", defaultTitle);
+    document.querySelector('meta[property="twitter:description"]')?.setAttribute("content", defaultDescription);
+};
+
+// --- Toast Notification System ---
+const ToastContext = React.createContext();
+const useToast = () => React.useContext(ToastContext);
+
+const ToastProvider = ({ children }) => {
+    const [toasts, setToasts] = useState([]);
+    const addToast = (message) => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message }]);
+        setTimeout(() => {
+            setToasts(prev => prev.filter(toast => toast.id !== id));
+        }, 5000);
+    };
+
+    return (
+        <ToastContext.Provider value={{ addToast }}>
+            {children}
+            <div className="fixed bottom-4 right-4 z-[100] space-y-2">
+                {toasts.map((toast) => (
+                    <div key={toast.id} className="max-w-sm w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4 flex items-center space-x-4 animate-fade-in-up">
+                        <span className="text-indigo-400">📣</span>
+                        <p className="text-sm text-slate-200">{toast.message}</p>
+                    </div>
+                ))}
+            </div>
+        </ToastContext.Provider>
+    );
+};
+
+
 // --- Main App Component ---
 export default function App() {
     const [route, setRoute] = useState({ page: 'home', projectId: null });
     const [db, setDb] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [notification, setNotification] = useState(null);
 
     // Simplified state-based navigation
     const navigate = (page, projectId = null) => {
@@ -106,18 +159,27 @@ export default function App() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-900 font-sans text-white">
-             <style>
-                {`
-                    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
-                    .font-poppins {
-                        font-family: 'Poppins', sans-serif;
-                    }
-                `}
-            </style>
-            { route.page === 'home' && <HomePage db={db} appId="project-buddy-app" navigate={navigate} /> }
-            { route.page === 'project' && <ProjectPage db={db} appId="project-buddy-app" projectId={route.projectId} navigate={navigate} /> }
-        </div>
+        <ToastProvider>
+            <div className="min-h-screen bg-slate-900 font-sans text-white">
+                 <style>
+                    {`
+                        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
+                        .font-poppins {
+                            font-family: 'Poppins', sans-serif;
+                        }
+                        @keyframes fade-in-up {
+                            from { opacity: 0; transform: translateY(20px); }
+                            to { opacity: 1; transform: translateY(0); }
+                        }
+                        .animate-fade-in-up {
+                            animation: fade-in-up 0.5s ease-out forwards;
+                        }
+                    `}
+                </style>
+                { route.page === 'home' && <HomePage db={db} appId="project-buddy-app" navigate={navigate} setNotification={setNotification} /> }
+                { route.page === 'project' && <ProjectPage db={db} appId="project-buddy-app" projectId={route.projectId} navigate={navigate} notification={notification} setNotification={setNotification} /> }
+            </div>
+        </ToastProvider>
     );
 }
 
@@ -147,7 +209,7 @@ const recentProjectsManager = {
 };
 
 // --- Home Page ---
-const HomePage = ({ db, appId, navigate }) => {
+const HomePage = ({ db, appId, navigate, setNotification }) => {
     const [transcript, setTranscript] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState('');
@@ -157,6 +219,7 @@ const HomePage = ({ db, appId, navigate }) => {
 
     useEffect(() => {
         setRecentProjects(recentProjectsManager.get());
+        resetMetaTags(); // Reset meta tags when returning to home page
     }, []);
 
     const handleGenerateProject = async () => {
@@ -268,6 +331,7 @@ const HomePage = ({ db, appId, navigate }) => {
                 status: task.status || 'Pending',
                 dueDate: task.dueDate || ''
             }));
+            const uniqueOwners = new Set(tasksToAdd.flatMap(t => t.owner).filter(o => o !== 'Unassigned'));
 
             await Promise.all(tasksToAdd.map(task => addDoc(tasksCollectionRef, task)));
             
@@ -276,6 +340,8 @@ const HomePage = ({ db, appId, navigate }) => {
                 timestamp: serverTimestamp() 
             });
             
+            const summary = `Project "${projectData.projectName}" created with ${tasksToAdd.length} tasks and ${uniqueOwners.size} owner(s) assigned.`;
+            setNotification(summary);
             navigate('project', newProjectRef.id);
 
         } catch (e) {
@@ -381,7 +447,7 @@ const HomePage = ({ db, appId, navigate }) => {
 };
 
 // --- Project Page ---
-const ProjectPage = ({ db, appId, projectId, navigate }) => {
+const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotification }) => {
     const [tasks, setTasks] = useState([]);
     const [project, setProject] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -402,6 +468,13 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
     const [actionToRun, setActionToRun] = useState(null);
 
     const isDemo = projectId === DEMO_PROJECT_ID;
+
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 7000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification, setNotification]);
 
     useEffect(() => {
         const storedName = localStorage.getItem('projectBuddy_userName');
@@ -431,13 +504,16 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
         if (isDemo) {
             const today = new Date();
             const demoDeadline = new Date(today.getFullYear(), today.getMonth() + 2, 15); // Deadline in 2 months
-            setProject({
+            const demoProject = {
                 id: DEMO_PROJECT_ID,
                 name: 'Website Redesign (Demo)',
                 deadline: demoDeadline.toISOString().split('T')[0],
                 code: 'view.example.only',
                 isDemo: true,
-            });
+            };
+            setProject(demoProject);
+            updateMetaTags(`Project: ${demoProject.name}`, `View the project plan for ${demoProject.name} on Project Buddy.`);
+            
             const demoTasks = [
                 { id: 'demo-1', title: 'Draft initial design mockups', owner: ['Alice'], category: 'Design', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 7)).toISOString().split('T')[0] },
                 { id: 'demo-2', title: 'Set up staging server environment', owner: ['Bob'], category: 'Development', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 10)).toISOString().split('T')[0] },
@@ -448,7 +524,10 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
             ];
             setTasks(demoTasks);
             setIsLoading(false);
-            return; // Exit effect for demo mode
+            
+            return () => {
+                resetMetaTags();
+            };
         }
 
         if (!db || !projectId) return;
@@ -464,9 +543,11 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
                 setProjectName(projectData.name);
                 setProjectDeadline(projectData.deadline || '');
                 recentProjectsManager.add({ id: projectData.id, name: projectData.name });
+                updateMetaTags(`Project: ${projectData.name}`, `View the project plan for ${projectData.name} on Project Buddy.`);
             } else {
                 console.error("Project not found!");
                 setProject(null);
+                resetMetaTags();
             }
         });
 
@@ -478,7 +559,11 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
             setIsLoading(false);
         });
 
-        return () => { unsubProject(); unsubTasks(); };
+        return () => {
+            unsubProject();
+            unsubTasks();
+            resetMetaTags();
+        };
     }, [db, appId, projectId, isDemo]);
 
     const handleProjectUpdate = (updates, actor) => {
@@ -523,7 +608,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
         }
     };
 
-    const logActivity = async (logMessage) => { if(isDemo || !db) return; const logRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, timestamp: serverTimestamp() }); };
+    const logActivity = async (logMessage) => { if(isDemo || !db) return; const logRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, author: userName, timestamp: serverTimestamp() }); };
     const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
     const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
     const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure?")) { const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
@@ -680,6 +765,12 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
                 onCancel={() => setShowNamePrompt(false)}
             />
             <SlackUpdateModal isOpen={!!slackUpdate} onClose={() => setSlackUpdate(null)} updateText={slackUpdate} />
+            {notification && (
+                <div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center">
+                    <span>{notification}</span>
+                    <button onClick={() => setNotification(null)} className="font-bold text-xl ml-4">&times;</button>
+                </div>
+            )}
             <header className="mb-8">
                 <div className="flex justify-between items-start">
                     <div>
@@ -780,7 +871,7 @@ const ProjectPage = ({ db, appId, projectId, navigate }) => {
             {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={appId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} />))}</div>
-                    <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} isDemo={isDemo} /></div>
+                    <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
                 </div>
             )}
         </div>
@@ -857,7 +948,31 @@ const SlackUpdateModal = ({ isOpen, onClose, updateText }) => {
     );
 };
 const UpdateProjectForm = ({ onUpdate, onCancel }) => { const [transcript, setTranscript] = useState(''); const [isUpdating, setIsUpdating] = useState(false); const handleSubmit = async (e) => { e.preventDefault(); setIsUpdating(true); await onUpdate(transcript); setIsUpdating(false); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-2">Update Project with Transcript</h3><p className="text-sm text-slate-400 mb-4">Paste in a follow-up transcript. ProjectBuddy will find updates to existing tasks and add any new tasks it discovers.</p><form onSubmit={handleSubmit}><textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your follow-up meeting transcript here..." className="w-full h-48 bg-slate-700 border border-slate-600 rounded-md p-4 text-sm text-white focus:ring-2 focus:ring-indigo-500" disabled={isUpdating} /><div className="flex justify-end gap-4 mt-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50" disabled={isUpdating || !transcript.trim()}>{isUpdating ? <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>Updating...</> : <><span className="text-lg">✨</span> Update Project</>}</button></div></form></div>);};
-const ActivityLog = ({ db, appId, projectId, isDemo }) => {
+const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
+    const { addToast } = useToast();
+    const isInitialLoad = useRef(true);
+
+    useEffect(() => {
+        if (isDemo || !db) return;
+
+        const logCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog');
+        const q = query(logCollectionRef, orderBy('timestamp', 'desc'));
+        
+        const unsub = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" && !isInitialLoad.current) {
+                    const newLog = change.doc.data();
+                    if (newLog.author !== userName) { // Don't show toast for your own actions
+                        addToast(newLog.log);
+                    }
+                }
+            });
+            isInitialLoad.current = false;
+        }); 
+
+        return () => unsub();
+    }, [db, appId, projectId, isDemo, addToast, userName]);
+
     const [activities, setActivities] = useState([]);
     useEffect(() => {
         if (isDemo) {
