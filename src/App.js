@@ -181,23 +181,26 @@ const HomePage = ({ db, appId, navigate }) => {
         const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
 
         const prompt = `
-        You are an expert project management assistant. Your goal is to analyze a meeting transcript and convert it into a structured, actionable JSON object. You must extract every action item.
+        You are an expert project management assistant. Your primary goal is to analyze a meeting transcript and convert it into a structured, actionable JSON object.
 
-        **Instructions:**
-        1.  **projectName**: Create a short, descriptive name for the overall project.
-        2.  **projectDeadline**: Find the overall project deadline. If it's a relative date (e.g., 'end of next month'), calculate the specific date in YYYY-MM-DD format.
-        3.  **tasks**: This must be an array of task objects.
-            * **title**: This is the most important rule. The title MUST be a concise, clear action item. It MUST be under 15 words. DO NOT just copy long sentences from the transcript. You MUST summarize the core action. If you cannot create a short title, you must refuse to create the task.
-            * **owner**: This MUST be a JSON array of strings. Identify the person(s) responsible. If no specific person is mentioned, you MUST use 'Unassigned'.
-            * **category**: Assign a logical category like 'Marketing', 'Development', 'Design', or 'Admin'.
-            * **status**: Set to 'Pending' by default.
-            * **dueDate**: Find the task's due date in YYYY-MM-DD format. If no date is mentioned, use an empty string "".
+        **CRITICAL RULES FOR OUTPUT:**
+        1.  The final output MUST be a single, valid JSON object. Do not include any text, notes, or markdown formatting like \`\`\`json before or after the JSON.
+        2.  For each task, the 'title' field is the most important. It MUST be a short, summarized action item, **15 words or less**.
+            - **GOOD EXAMPLE**: "Finalize and order wrapper design"
+            - **BAD EXAMPLE**: "Finalize the wrapper design and order the initial batch. Lead times are always a concern there. The design is approved. We sent it over to procurement last week."
+        3.  NEVER copy and paste long sentences from the transcript into the title. ALWAYS summarize the core task. If you cannot create a short, summarized title, do not include the task.
 
-        **IMPORTANT CONTEXT**: Today is ${dayOfWeek}, ${formattedDate}. Use this to calculate relative dates.
+        **JSON Structure Instructions:**
+        - **projectName**: Create a short, descriptive name for the overall project.
+        - **projectDeadline**: Find the overall project deadline. If it's a relative date (e.g., 'end of next month'), calculate the specific date in YYYY-MM-DD format. Today's date is ${dayOfWeek}, ${formattedDate}.
+        - **tasks**: An array of task objects. For each task:
+            - **title**: The summarized action item (15 words or less).
+            - **owner**: A JSON array of strings (e.g., ["Sarah"], ["Tom", "Alice"]). Use ["Unassigned"] if no one is mentioned.
+            - **category**: A logical category (e.g., 'Marketing', 'Development', 'Design').
+            - **status**: Default to 'Pending'.
+            - **dueDate**: The task's due date in YYYY-MM-DD format. Use an empty string "" if not mentioned.
 
-        **CRITICAL RULE**: The final output MUST be a single, valid JSON object and nothing else. Do not include any text, notes, or formatting before or after the JSON object.
-
-        **Transcript to Analyze:**
+        **Analyze the following transcript:**
         ---
         ${transcript}
         ---
