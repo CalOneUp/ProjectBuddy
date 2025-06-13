@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where } from 'firebase/firestore';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 // --- Helper Components & Icons ---
 const ChevronDown = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m6 9 6 6 6-6" /></svg>);
@@ -53,14 +54,13 @@ const generateProjectCode = () => {
 // --- New Generation Splash Screen Component ---
 const GenerationSplash = () => (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex flex-col justify-center items-center z-50">
-        <dotlottie-player
-            src="https://lottie.host/b7515011-6770-4dbe-b566-500a2bbc866b/OErXmGWfTl.json"
-            background="transparent"
-            speed="1"
-            style={{ width: '300px', height: '300px' }}
-            loop
-            autoplay
-        ></dotlottie-player>
+        <div className="w-64 h-64">
+            <DotLottieReact
+                src="https://lottie.host/b7515011-6770-4dbe-b566-500a2bbc866b/OErXmGWfTl.json"
+                loop
+                autoplay
+            />
+        </div>
         <h2 className="text-2xl font-bold text-white -mt-8">Generating your project...</h2>
         <p className="text-indigo-300">The AI is analyzing your transcript.</p>
     </div>
