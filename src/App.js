@@ -175,7 +175,7 @@ const HomePage = ({ db, appId, navigate }) => {
         }
         setIsGenerating(true);
         setError('');
-
+        
         const today = new Date();
         const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
@@ -229,25 +229,26 @@ const HomePage = ({ db, appId, navigate }) => {
         ---
         `;
         const generationConfig = { responseMimeType: "application/json", responseSchema: { type: 'OBJECT', properties: { projectName: { type: 'STRING' }, projectDeadline: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format.' }, tasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, owner: { type: 'ARRAY', items: { type: 'STRING' } }, category: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] }, dueDate: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format. Can be an empty string.' } } } } } } };
-
+        
+        let geminiText = ''; // Declare geminiText here to access it in the catch block
         try {
             const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig };
-
+            
             const apiResponse = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-
+            
             if (!apiResponse.ok) {
                 const errorText = await apiResponse.text();
                 throw new Error(`API call failed with status ${apiResponse.status}: ${errorText}`);
             }
 
             const result = await apiResponse.json();
-            const geminiText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            geminiText = result.candidates?.[0]?.content?.parts?.[0]?.text;
             if (!geminiText) {
                 throw new Error('The AI response was empty or in an unexpected format. Please try again.');
             }
-
+            
             const projectData = JSON.parse(geminiText);
 
             if (!projectData.projectName || !Array.isArray(projectData.tasks)) {
@@ -255,16 +256,16 @@ const HomePage = ({ db, appId, navigate }) => {
             }
 
             const projectsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
-
-            const newProjectRef = await addDoc(projectsCollectionRef, {
-                name: projectData.projectName || 'Untitled Project',
-                deadline: projectData.projectDeadline || null,
-                createdAt: serverTimestamp(),
-                code: generateProjectCode()
+            
+            const newProjectRef = await addDoc(projectsCollectionRef, { 
+                name: projectData.projectName || 'Untitled Project', 
+                deadline: projectData.projectDeadline || null, 
+                createdAt: serverTimestamp(), 
+                code: generateProjectCode() 
             });
 
             const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'tasks');
-
+            
             const tasksToAdd = projectData.tasks.map(task => ({
                 title: task.title || 'Untitled Task',
                 owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
@@ -274,18 +275,19 @@ const HomePage = ({ db, appId, navigate }) => {
             }));
 
             await Promise.all(tasksToAdd.map(task => addDoc(tasksCollectionRef, task)));
-
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'activityLog'), {
-                log: `Project created by ✨ Project Buddy AI`,
-                timestamp: serverTimestamp()
+            
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'activityLog'), { 
+                log: `Project created by ✨ Project Buddy AI`, 
+                timestamp: serverTimestamp() 
             });
-
+            
             navigate('project', newProjectRef.id);
 
         } catch (e) {
             console.error("GENERATION FAILED:", e);
             if (e instanceof SyntaxError) {
-                setError("Error: The AI's response was not valid. This can happen if the transcript contains unusual formatting. Please try modifying the transcript and generating again.");
+                // If JSON parsing fails, show the problematic text from the AI
+                setError(`Error: The AI's response was not valid JSON. Please try again. Raw AI response: "${geminiText}"`);
             } else {
                 setError(`An error occurred: ${e.message}`);
             }
@@ -293,7 +295,7 @@ const HomePage = ({ db, appId, navigate }) => {
             setIsGenerating(false);
         }
     };
-
+    
     const handleSearch = async (e) => {
         e.preventDefault();
         setError('');
@@ -301,7 +303,7 @@ const HomePage = ({ db, appId, navigate }) => {
         setIsSearching(true);
         const projectsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
         const q = query(projectsRef, where("code", "==", searchQuery.trim().toLowerCase()));
-
+        
         try {
             const querySnapshot = await getDocs(q);
             if (!querySnapshot.empty) {
