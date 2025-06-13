@@ -50,11 +50,33 @@ const generateProjectCode = () => {
     return code.join('.');
 };
 
+// --- New Generation Splash Screen Component ---
+const GenerationSplash = () => (
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex flex-col justify-center items-center z-50">
+        <dotlottie-player
+            src="https://lottie.host/b7515011-6770-4dbe-b566-500a2bbc866b/OErXmGWfTl.json"
+            background="transparent"
+            speed="1"
+            style={{ width: '300px', height: '300px' }}
+            loop
+            autoplay
+        ></dotlottie-player>
+        <h2 className="text-2xl font-bold text-white -mt-8">Generating your project...</h2>
+        <p className="text-indigo-300">The AI is analyzing your transcript.</p>
+    </div>
+);
+
+
 // --- Main App Component ---
 export default function App() {
     const [route, setRoute] = useState({ page: 'home', projectId: null });
     const [db, setDb] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    // New state for handling generation flow
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationError, setGenerationError] = useState(null);
+    const [lastTranscript, setLastTranscript] = useState('');
 
     // Simplified state-based navigation
     const navigate = (page, projectId = null) => {
@@ -64,25 +86,19 @@ export default function App() {
     // This hook prevents the backspace key from triggering browser navigation
     useEffect(() => {
         const handleKeyDown = (e) => {
-            // Check if the backspace key was pressed
             if (e.key === 'Backspace') {
                 const target = e.target;
-                // Allow backspace in inputs and textareas
                 if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
                     return;
                 }
-                // Prevent default browser action (navigation) for all other cases
                 e.preventDefault();
             }
         };
-
         document.addEventListener('keydown', handleKeyDown);
-
-        // Cleanup the event listener on component unmount
         return () => {
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, []); // Empty dependency array ensures this runs only once
+    }, []);
 
     // This hook runs once on initial load to check for a shared project ID in the URL
     useEffect(() => {
@@ -91,13 +107,11 @@ export default function App() {
         if (sharedProjectId) {
             navigate('project', sharedProjectId);
         }
-    }, []); // The empty array ensures this runs only once when the component mounts
+    }, []);
 
     // Initialize Firebase
     useEffect(() => {
-        // Parse the Firebase config from the environment variable
         const firebaseConfig = JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG);
-
         try {
             const app = initializeApp(firebaseConfig);
             const firestore = getFirestore(app);
@@ -105,10 +119,135 @@ export default function App() {
         } catch (error) {
             console.error("Firebase initialization failed:", error);
         }
-
         setIsLoading(false);
-
     }, []);
+
+    const handleGenerateProject = async (transcript) => {
+        if (!transcript.trim()) {
+            setGenerationError('Please paste a transcript first.');
+            return;
+        }
+        
+        setIsGenerating(true);
+        setGenerationError(null);
+        setLastTranscript(transcript);
+
+        const today = new Date();
+        const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
+
+        let attendees = [];
+        const transcriptLines = transcript.split('\n');
+        const attendeesIndex = transcriptLines.findIndex(line => line.toLowerCase().startsWith('attendees:'));
+        if (attendeesIndex !== -1) {
+            let i = attendeesIndex + 1;
+            while(i < transcriptLines.length && transcriptLines[i].trim() !== '') {
+                const line = transcriptLines[i].trim();
+                const match = line.match(/^(.*?)\s*\(/);
+                if (match) {
+                    attendees.push(match[1].trim());
+                } else if (line) {
+                    attendees.push(line);
+                }
+                i++;
+            }
+        }
+        const attendeesListString = attendees.length > 0 ? attendees.join(', ') : 'Not specified';
+
+        const prompt = `
+        You are a hyper-intelligent and meticulous project management assistant. Your single most important goal is to convert a meeting transcript into a perfectly structured, actionable JSON object. Failure to produce valid, concise JSON is not an option.
+
+        **CRITICAL DIRECTIVES:**
+        1.  **VALID JSON ONLY:** Your entire response MUST be a single, raw JSON object. Do not include any conversational text, notes, or markdown like \`\`\`json before or after the JSON.
+        2.  **SUMMARIZE TASK TITLES:** Task titles are the most critical field. They MUST be short, clear action items, **15 words or less**.
+            - **CORRECT EXAMPLE**: "Finalize and order new sandwich wrapper"
+            - **INCORRECT EXAMPLE**: "Finalize the wrapper design and order the initial batch. Lead times are always a concern there. The design is approved, David. We sent it over to procurement last week. They're handling the initial order."
+        3.  **NO VERBATIM COPYING:** Never copy long, repetitive sentences from the transcript into any field, especially the title. This is a critical failure. Always summarize.
+        4.  **COMBINE DUPLICATE TASKS:** If the same action item is mentioned multiple times, create only ONE task for it. Consolidate the information.
+
+        **CONTEXT FOR YOUR ANALYSIS:**
+        - **Today's Date**: ${dayOfWeek}, ${formattedDate}. Use this for calculating relative dates (e.g., 'next Friday').
+        - **Meeting Attendees**: ${attendeesListString}. Use this list to help determine task owners.
+
+        **JSON STRUCTURE & RULES:**
+        - **projectName**: A short, descriptive name for the overall project.
+        - **projectDeadline**: The overall project deadline in<y_bin_858>-MM-DD format.
+        - **tasks**: An array of task objects. For each task:
+            - **title**: The summarized action item (MUST be 15 words or less).
+            - **owner**: A JSON array of strings. Look for names from the **Meeting Attendees** list who are responsible for the task. If multiple people are responsible, include all of them (e.g., ["Chloe", "Mark"]). If no specific person is mentioned, use ["Unassigned"].
+            - **category**: A logical category (e.g., 'Marketing', 'Development', 'Design', 'Operations', 'Supply Chain').
+            - **status**: Default to 'Pending' unless the transcript explicitly says it is 'In Progress' or 'Done'.
+            - **dueDate**: The task's due date in<y_bin_858>-MM-DD format. Use an empty string "" if not mentioned.
+
+        **Analyze the following transcript and generate the JSON object:**
+        ---
+        ${transcript}
+        ---
+        `;
+        const generationConfig = { responseMimeType: "application/json", responseSchema: { type: 'OBJECT', properties: { projectName: { type: 'STRING' }, projectDeadline: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format.' }, tasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, owner: { type: 'ARRAY', items: { type: 'STRING' } }, category: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] }, dueDate: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format. Can be an empty string.' } } } } } } };
+        
+        let geminiText = '';
+        try {
+            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig };
+            
+            const apiResponse = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            
+            if (!apiResponse.ok) {
+                const errorText = await apiResponse.text();
+                throw new Error(`API call failed with status ${apiResponse.status}: ${errorText}`);
+            }
+
+            const result = await apiResponse.json();
+            geminiText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!geminiText) {
+                throw new Error('The AI response was empty or in an unexpected format. Please try again.');
+            }
+            
+            const projectData = JSON.parse(geminiText);
+
+            if (!projectData.projectName || !Array.isArray(projectData.tasks)) {
+                 throw new Error('The AI response was missing key project information.');
+            }
+
+            const projectsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
+            const newProjectRef = await addDoc(projectsCollectionRef, { 
+                name: projectData.projectName || 'Untitled Project', 
+                deadline: projectData.projectDeadline || null, 
+                createdAt: serverTimestamp(), 
+                code: generateProjectCode() 
+            });
+
+            const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'tasks');
+            const tasksToAdd = projectData.tasks.map(task => ({
+                title: task.title || 'Untitled Task',
+                owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
+                category: task.category || 'General',
+                status: task.status || 'Pending',
+                dueDate: task.dueDate || ''
+            }));
+
+            await Promise.all(tasksToAdd.map(task => addDoc(tasksCollectionRef, task)));
+            
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'activityLog'), { 
+                log: `Project created by ✨ Project Buddy AI`, 
+                timestamp: serverTimestamp() 
+            });
+            
+            navigate('project', newProjectRef.id);
+
+        } catch (e) {
+            console.error("GENERATION FAILED:", e);
+            if (e instanceof SyntaxError) {
+                setGenerationError(`Error: The AI's response was not valid JSON. This can happen with complex transcripts. Please try simplifying the transcript. Raw AI response: "${geminiText}"`);
+            } else {
+                setGenerationError(`An error occurred: ${e.message}`);
+            }
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     if (isLoading) {
         return <div className="min-h-screen bg-slate-900 flex justify-center items-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>;
@@ -116,6 +255,7 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-slate-900 font-sans text-white">
+            {isGenerating && <GenerationSplash />}
              <style>
                 {`
                     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
@@ -124,7 +264,16 @@ export default function App() {
                     }
                 `}
             </style>
-            { route.page === 'home' && <HomePage db={db} appId="project-buddy-app" navigate={navigate} /> }
+            { route.page === 'home' && (
+                <HomePage 
+                    db={db} 
+                    appId="project-buddy-app" 
+                    navigate={navigate} 
+                    onGenerateProject={handleGenerateProject}
+                    generationError={generationError}
+                    onRetry={() => handleGenerateProject(lastTranscript)}
+                />
+            )}
             { route.page === 'project' && <ProjectPage db={db} appId="project-buddy-app" projectId={route.projectId} navigate={navigate} /> }
         </div>
     );
@@ -156,10 +305,9 @@ const recentProjectsManager = {
 };
 
 // --- Home Page ---
-const HomePage = ({ db, appId, navigate }) => {
+const HomePage = ({ db, appId, navigate, onGenerateProject, generationError, onRetry }) => {
     const [transcript, setTranscript] = useState('');
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [error, setError] = useState('');
+    const [isButtonLoading, setIsButtonLoading] = useState(false);
     const [recentProjects, setRecentProjects] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
@@ -167,139 +315,16 @@ const HomePage = ({ db, appId, navigate }) => {
     useEffect(() => {
         setRecentProjects(recentProjectsManager.get());
     }, []);
-
-    const handleGenerateProject = async () => {
-        if (!transcript.trim()) {
-            setError('Please paste a transcript first.');
-            return;
-        }
-        setIsGenerating(true);
-        setError('');
-        
-        const today = new Date();
-        const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
-
-        // Extract attendees from the transcript if provided
-        let attendees = [];
-        const transcriptLines = transcript.split('\n');
-        const attendeesIndex = transcriptLines.findIndex(line => line.toLowerCase().startsWith('attendees:'));
-        if (attendeesIndex !== -1) {
-            let i = attendeesIndex + 1;
-            while(i < transcriptLines.length && transcriptLines[i].trim() !== '') {
-                const line = transcriptLines[i].trim();
-                const match = line.match(/^(.*?)\s*\(/); // Extract name before parenthesis (e.g., "Sarah Chen (SC)")
-                if (match) {
-                    attendees.push(match[1].trim());
-                } else if (line) {
-                    attendees.push(line);
-                }
-                i++;
-            }
-        }
-        const attendeesListString = attendees.length > 0 ? attendees.join(', ') : 'Not specified';
-
-        const prompt = `
-        You are a hyper-intelligent and meticulous project management assistant. Your single most important goal is to convert a meeting transcript into a perfectly structured, actionable JSON object. Failure to produce valid, concise JSON is not an option.
-
-        **CRITICAL DIRECTIVES:**
-        1.  **VALID JSON ONLY:** Your entire response MUST be a single, raw JSON object. Do not include any conversational text, notes, or markdown like \`\`\`json before or after the JSON.
-        2.  **SUMMARIZE TASK TITLES:** Task titles are the most critical field. They MUST be short, clear action items, **15 words or less**.
-            - **CORRECT EXAMPLE**: "Finalize and order new sandwich wrapper"
-            - **INCORRECT EXAMPLE**: "Finalize the wrapper design and order the initial batch. Lead times are always a concern there. The design is approved, David. We sent it over to procurement last week. They're handling the initial order."
-        3.  **NO VERBATIM COPYING:** Never copy long, repetitive sentences from the transcript into any field, especially the title. This is a critical failure. Always summarize.
-        4.  **COMBINE DUPLICATE TASKS:** If the same action item is mentioned multiple times, create only ONE task for it. Consolidate the information.
-
-        **CONTEXT FOR YOUR ANALYSIS:**
-        - **Today's Date**: ${dayOfWeek}, ${formattedDate}. Use this for calculating relative dates (e.g., 'next Friday').
-        - **Meeting Attendees**: ${attendeesListString}. Use this list to help determine task owners.
-
-        **JSON STRUCTURE & RULES:**
-        - **projectName**: A short, descriptive name for the overall project.
-        - **projectDeadline**: The overall project deadline in YYYY-MM-DD format.
-        - **tasks**: An array of task objects. For each task:
-            - **title**: The summarized action item (MUST be 15 words or less).
-            - **owner**: A JSON array of strings. Look for names from the **Meeting Attendees** list who are responsible for the task. If multiple people are responsible, include all of them (e.g., ["Chloe", "Mark"]). If no specific person is mentioned, use ["Unassigned"].
-            - **category**: A logical category (e.g., 'Marketing', 'Development', 'Design', 'Operations', 'Supply Chain').
-            - **status**: Default to 'Pending' unless the transcript explicitly says it is 'In Progress' or 'Done'.
-            - **dueDate**: The task's due date in YYYY-MM-DD format. Use an empty string "" if not mentioned.
-
-        **Analyze the following transcript and generate the JSON object:**
-        ---
-        ${transcript}
-        ---
-        `;
-        const generationConfig = { responseMimeType: "application/json", responseSchema: { type: 'OBJECT', properties: { projectName: { type: 'STRING' }, projectDeadline: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format.' }, tasks: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, owner: { type: 'ARRAY', items: { type: 'STRING' } }, category: { type: 'STRING' }, status: { type: 'STRING', enum: ['Pending', 'In Progress', 'Done'] }, dueDate: { type: 'STRING', description: 'A date in `YYYY-MM-DD` format. Can be an empty string.' } } } } } } };
-        
-        let geminiText = ''; // Declare geminiText here to access it in the catch block
-        try {
-            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig };
-            
-            const apiResponse = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            
-            if (!apiResponse.ok) {
-                const errorText = await apiResponse.text();
-                throw new Error(`API call failed with status ${apiResponse.status}: ${errorText}`);
-            }
-
-            const result = await apiResponse.json();
-            geminiText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!geminiText) {
-                throw new Error('The AI response was empty or in an unexpected format. Please try again.');
-            }
-            
-            const projectData = JSON.parse(geminiText);
-
-            if (!projectData.projectName || !Array.isArray(projectData.tasks)) {
-                 throw new Error('The AI response was missing key project information.');
-            }
-
-            const projectsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
-            
-            const newProjectRef = await addDoc(projectsCollectionRef, { 
-                name: projectData.projectName || 'Untitled Project', 
-                deadline: projectData.projectDeadline || null, 
-                createdAt: serverTimestamp(), 
-                code: generateProjectCode() 
-            });
-
-            const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'tasks');
-            
-            const tasksToAdd = projectData.tasks.map(task => ({
-                title: task.title || 'Untitled Task',
-                owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
-                category: task.category || 'General',
-                status: task.status || 'Pending',
-                dueDate: task.dueDate || ''
-            }));
-
-            await Promise.all(tasksToAdd.map(task => addDoc(tasksCollectionRef, task)));
-            
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'activityLog'), { 
-                log: `Project created by ✨ Project Buddy AI`, 
-                timestamp: serverTimestamp() 
-            });
-            
-            navigate('project', newProjectRef.id);
-
-        } catch (e) {
-            console.error("GENERATION FAILED:", e);
-            if (e instanceof SyntaxError) {
-                // If JSON parsing fails, show a more descriptive error with the raw text.
-                setError(`Error: The AI's response was not valid. This can happen with complex transcripts. Please try simplifying the transcript. Raw AI response: "${geminiText}"`);
-            } else {
-                setError(`An error occurred: ${e.message}`);
-            }
-        } finally {
-            setIsGenerating(false);
-        }
-    };
     
+    const handleGenerateClick = () => {
+        setIsButtonLoading(true);
+        onGenerateProject(transcript).finally(() => {
+            setIsButtonLoading(false);
+        });
+    };
+
     const handleSearch = async (e) => {
         e.preventDefault();
-        setError('');
         if (!searchQuery.trim()) return;
         setIsSearching(true);
         const projectsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
@@ -311,11 +336,11 @@ const HomePage = ({ db, appId, navigate }) => {
                 const projectDoc = querySnapshot.docs[0];
                 navigate('project', projectDoc.id);
             } else {
-                setError("Project not found. Please check the code and try again.");
+                alert("Project not found. Please check the code and try again.");
             }
         } catch(err) {
             console.error("Search failed:", err);
-            setError("An error occurred during search.");
+            alert("An error occurred during search.");
         } finally {
             setIsSearching(false);
         }
@@ -332,11 +357,16 @@ const HomePage = ({ db, appId, navigate }) => {
             </header>
 
             <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl mb-6">
-                <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started..." className="w-full h-64 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isGenerating}/>
+                <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="w-full h-64 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isButtonLoading}/>
                 <div className="mt-4 flex justify-end items-center">
-                    {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
-                    <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
-                        {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
+                    {generationError && (
+                        <div className="text-sm text-red-400 mr-4 text-right">
+                           <p>Generation failed. Please try simplifying the transcript.</p>
+                           <button onClick={onRetry} className="underline font-semibold hover:text-red-300">Try Again</button>
+                        </div>
+                    )}
+                    <button onClick={handleGenerateClick} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isButtonLoading}>
+                        {isButtonLoading ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
                     </button>
                 </div>
             </div>
@@ -359,12 +389,11 @@ const HomePage = ({ db, appId, navigate }) => {
                  <h2 className="text-2xl font-bold text-white mb-4">Already working on a project?</h2>
                 <div className="max-w-lg mx-auto bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl">
                     <form onSubmit={handleSearch} className="flex gap-2">
-                        <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />
+                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />
                         <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching}>
                             {isSearching ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <SearchIcon className="w-5 h-5" />}
                         </button>
                     </form>
-                     {error && !isGenerating && <p className="text-sm text-red-400 mt-4">{error}</p>}
                 </div>
             </div>
 
