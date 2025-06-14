@@ -443,10 +443,7 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                             </button>
                         </div>
                     </div>
-                </div>
-
-                <div className="lg:col-span-2">
-                    <div className="text-center mb-8">
+                    <div className="text-center mt-4">
                         <p className="text-slate-400">
                             Or{" "}
                             <button
@@ -458,7 +455,9 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                             {" "}to see how it works.
                         </p>
                     </div>
+                </div>
 
+                <div className="lg:col-span-2">
                     <div className="text-center mb-8">
                         <h2 className="text-2xl font-bold text-white mb-4">Already working on a project?</h2>
                         <div className="max-w-lg mx-auto bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl">
