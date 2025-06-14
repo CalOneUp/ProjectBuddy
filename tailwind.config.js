@@ -6,10 +6,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'brand-dark': '#1a202c',       // Very Dark Blue
-        'brand-surface': '#2d3748',    // Dark Slate
-        'brand-primary': '#06b6d4',     // Vibrant Teal
-        'brand-light': '#64748b',       // Muted Blue/Slate
+        'brand-dark': '#111827',        // Dark Background
+        'brand-surface': '#1f2937',     // Lighter Surface
+        'brand-primary': '#8b5cf6',      // Expressive Purple
+        'brand-secondary': '#ec4899',   // Vibrant Pink
+        'brand-tertiary': '#f59e0b',     // Warm Amber
+        'brand-light': '#9ca3af',        // Muted Gray
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
