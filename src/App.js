@@ -247,6 +247,7 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
     const [recentProjects, setRecentProjects] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    const [showComingSoon, setShowComingSoon] = useState(false);
     
     // --- NEW: State and fetching for the expanded word list ---
     const [wordList, setWordList] = useState([]);
@@ -485,13 +486,17 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                                     view an example project
                                 </button>
                             </p>
-                            <div className="flex items-center">
-                                {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setShowComingSoon(true)} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50" >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+                                    Record & Transcribe
+                                </button>
                                 <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
                                     {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
                                 </button>
                             </div>
                         </div>
+                         {error && <div className="text-sm text-red-400 mt-4 text-right"><p>{error}</p></div>}
                     </div>
                 </div>
 
@@ -527,23 +532,23 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
 
             <div className="my-24 py-16 bg-brand-surface rounded-2xl">
                 <div className="max-w-5xl mx-auto px-6 text-center">
-                    <h2 className="text-3xl font-bold text-white mb-4">Stop Drowning in Meeting Notes. Start Tackling Your Projects.</h2>
-                    <p className="text-brand-light mb-12 max-w-3xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
+                    <h2 className="text-3xl font-bold text-white mb-4">No Transcript? No Problem.</h2>
+                    <p className="text-brand-light mb-12 max-w-3xl mx-auto">Getting a transcript is easier than you think. Most meeting platforms have built-in transcription, or you can use a dedicated service. Once you have the text, just paste it in to see the magic happen.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
                             <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
-                            <h3 className="text-xl font-semibold text-white mb-2">AI Project Creation</h3>
-                            <p className="text-brand-light">Paste any meeting transcript and our AI will instantly generate a complete project plan, complete with tasks, owners, and categories.</p>
+                            <h3 className="text-xl font-semibold text-white mb-2">Built-in Tools</h3>
+                            <p className="text-brand-light">Platforms like Zoom, Google Meet, and Microsoft Teams can automatically transcribe your meetings.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
                              <ZapIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
-                            <h3 className="text-xl font-semibold text-white mb-2">Automatic Project Updates</h3>
-                            <p className="text-brand-light">Got a follow-up meeting? Just paste the new transcript. Our AI will intelligently update existing tasks and add new ones.</p>
+                            <h3 className="text-xl font-semibold text-white mb-2">Third-Party Services</h3>
+                            <p className="text-brand-light">For higher accuracy, services like Otter.ai or Fireflies.ai are excellent options for transcribing your meeting audio.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
                            <UsersIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
-                            <h3 className="text-xl font-semibold text-white mb-2">Collaborative Dashboard</h3>
-                            <p className="text-brand-light">Share your project with a unique code. Everyone can see the real-time status, add comments, and update tasks together.</p>
+                            <h3 className="text-xl font-semibold text-white mb-2">Live Transcription</h3>
+                            <p className="text-brand-light">Soon, you'll be able to record and transcribe your meetings directly within Meet & Tackle. Stay tuned!</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
                            <MessageSquareIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
@@ -553,9 +558,21 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                     </div>
                 </div>
             </div>
+            {showComingSoon && <ComingSoonModal onClose={() => setShowComingSoon(false)} />}
         </div>
     );
 };
+
+const ComingSoonModal = ({ onClose }) => (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
+        <div className="bg-brand-surface rounded-lg border border-slate-700 p-8 shadow-2xl max-w-sm w-full mx-4 text-center" onClick={e => e.stopPropagation()}>
+            <h3 className="text-2xl font-bold text-white mb-4">Coming Soon!</h3>
+            <p className="text-brand-light mb-6">Our live recording and transcription feature is currently in development. For now, please paste a transcript from another source.</p>
+            <button onClick={onClose} className="px-6 py-2 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity">Got It</button>
+        </div>
+    </div>
+);
+
 
 // --- Project Page ---
 const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotification }) => {
@@ -1208,3 +1225,4 @@ const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, se
   <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-brand-surface border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
   {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
     <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-brand-dark border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-brand-primary"/></div>)}</div>)}</div></div>);};
+
