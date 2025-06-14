@@ -86,7 +86,7 @@ const ToastProvider = ({ children }) => {
             <div className="fixed bottom-4 right-4 z-[100] space-y-2">
                 {toasts.map((toast) => (
                     <div key={toast.id} className="max-w-sm w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4 flex items-center space-x-4 animate-fade-in-up">
-                        <span className="text-indigo-400">📣</span>
+                        <span className="text-brand-light">📣</span>
                         <p className="text-sm text-slate-200">{toast.message}</p>
                     </div>
                 ))}
@@ -149,12 +149,12 @@ export default function App() {
 
 
     if (isLoading) {
-        return <div className="min-h-screen bg-slate-900 flex justify-center items-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>;
+        return <div className="min-h-screen bg-brand-dark flex justify-center items-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-primary"></div></div>;
     }
 
     return (
         <ToastProvider>
-            <div className="min-h-screen bg-slate-900 font-sans text-white">
+            <div className="min-h-screen bg-brand-dark font-sans text-white">
                  <style>
                     {`
                         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
@@ -431,26 +431,26 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
             <header className="text-center mb-12">
                 <img src="/mt-logo.png" alt="Meet & Tackle Logo" className="mx-auto mb-4 max-w-sm" />
-                <p className="text-indigo-300 text-lg mt-4">Hook into your action items. The best AI tool to tackle your meeting notes.</p>
+                <p className="text-brand-light text-lg mt-4">Hook into your action items. The best AI tool to tackle your meeting notes.</p>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:items-start">
                 <div className="lg:col-span-3">
                     <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl">
-                        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="w-full h-96 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isGenerating}/>
+                        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="w-full h-96 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-brand-primary placeholder-slate-500" disabled={isGenerating}/>
                         <div className="mt-4 flex justify-between items-center">
                             <p className="text-slate-400 text-sm">
                                 Or{" "}
                                 <button
                                     onClick={() => navigate('project', DEMO_PROJECT_ID)}
-                                    className="text-indigo-400 hover:text-indigo-300 underline font-semibold"
+                                    className="text-brand-light hover:text-brand-primary underline font-semibold"
                                 >
                                     view an example project
                                 </button>
                             </p>
                             <div className="flex items-center">
                                 {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
-                                <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
+                                <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
                                     {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
                                 </button>
                             </div>
@@ -463,8 +463,8 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                         <h2 className="text-2xl font-bold text-white mb-4">Already working on a project?</h2>
                         <div className="max-w-lg mx-auto bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl">
                             <form onSubmit={handleSearch} className="flex gap-2">
-                                <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />
-                                <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching}>
+                                <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />
+                                <button type="submit" className="px-4 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching}>
                                     {isSearching ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <SearchIcon className="w-5 h-5" />}
                                 </button>
                             </form>
@@ -477,7 +477,7 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                             <h2 className="text-2xl font-bold text-white mb-4 text-center">Recently Viewed Projects</h2>
                             <div className="max-w-lg mx-auto space-y-3">
                                 {recentProjects.map(proj => (
-                                    <div key={proj.id} onClick={() => navigate('project', proj.id)} className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-indigo-500 flex justify-between items-center cursor-pointer transition-colors">
+                                    <div key={proj.id} onClick={() => navigate('project', proj.id)} className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-brand-primary flex justify-between items-center cursor-pointer transition-colors">
                                         <span className="font-semibold text-slate-200">{proj.name}</span>
                                         <ExternalLinkIcon className="w-5 h-5 text-slate-400" />
                                     </div>
@@ -491,25 +491,25 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
             <div className="my-24 py-16 bg-slate-800/50 rounded-2xl">
                 <div className="max-w-5xl mx-auto px-6 text-center">
                     <h2 className="text-3xl font-bold text-white mb-4">Stop Drowning in Meeting Notes. Start Tackling Your Projects.</h2>
-                    <p className="text-indigo-300 mb-12 max-w-3xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
+                    <p className="text-brand-light mb-12 max-w-3xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-                            <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
+                            <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
                             <h3 className="text-xl font-semibold text-white mb-2">AI Project Creation</h3>
                             <p className="text-slate-400">Paste any meeting transcript and our AI will instantly generate a complete project plan, complete with tasks, owners, and categories.</p>
                         </div>
                         <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-                             <ZapIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
+                             <ZapIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Automatic Project Updates</h3>
                             <p className="text-slate-400">Got a follow-up meeting? Just paste the new transcript. Our AI will intelligently update existing tasks and add new ones.</p>
                         </div>
                         <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-                           <UsersIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
+                           <UsersIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Collaborative Dashboard</h3>
                             <p className="text-slate-400">Share your project with a unique code. Everyone can see the real-time status, add comments, and update tasks together.</p>
                         </div>
                         <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-                           <MessageSquareIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
+                           <MessageSquareIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Instant Slack Updates</h3>
                             <p className="text-slate-400">With one click, generate a perfectly formatted Slack message to keep your team in the loop on project progress and at-risk tasks.</p>
                         </div>
@@ -842,11 +842,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 
 
     if (isLoading) {
-        return <div className="min-h-screen bg-slate-900 flex justify-center items-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>;
+        return <div className="min-h-screen bg-brand-dark flex justify-center items-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-primary"></div></div>;
     }
 
     if (!project) {
-        return <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center text-white"><h1 className="text-4xl font-bold mb-4">Project Not Found</h1><p className="text-slate-400 mb-8">The project you are looking for does not exist or has been deleted.</p><button onClick={() => navigate('home')} className="px-6 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-500">Go Home</button></div>
+        return <div className="min-h-screen bg-brand-dark flex flex-col justify-center items-center text-white"><h1 className="text-4xl font-bold mb-4">Project Not Found</h1><p className="text-slate-400 mb-8">The project you are looking for does not exist or has been deleted.</p><button onClick={() => navigate('home')} className="px-6 py-2 bg-brand-primary rounded-lg hover:opacity-90">Go Home</button></div>
     }
 
     return (
@@ -878,7 +878,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                             <h1 className="text-4xl font-poppins font-bold text-white tracking-tight mb-2">
                                 <span
                                     onClick={() => navigate('home')}
-                                    className="cursor-pointer hover:text-indigo-300 transition-colors duration-200"
+                                    className="cursor-pointer hover:text-brand-light transition-colors duration-200"
                                 >
                                     Meet & Tackle
                                 </span>
@@ -890,26 +890,26 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                                         onChange={(e) => setProjectName(e.target.value)}
                                         onBlur={handleSaveName}
                                         onKeyDown={handleNameKeydown}
-                                        className="text-4xl font-poppins font-bold bg-transparent text-indigo-400 tracking-tight focus:outline-none focus:bg-slate-800/50 rounded-md"
+                                        className="text-4xl font-poppins font-bold bg-transparent text-brand-light tracking-tight focus:outline-none focus:bg-slate-800/50 rounded-md"
                                         style={{ width: `${projectName.length + 2}ch`}} // Dynamically size input
                                         autoFocus
                                         disabled={isDemo}
                                     />
                                 ) : (
                                     <span
-                                        className={`text-indigo-400 ${!isDemo && 'cursor-pointer hover:underline'}`}
+                                        className={`text-brand-light ${!isDemo && 'cursor-pointer hover:underline'}`}
                                         onClick={() => { if (!isDemo) requireName(() => setIsEditingName(true)) }}
                                     >
                                         {project.name}
                                     </span>
                                 )}
                             </h1>
-                            <p className="text-indigo-300 mt-2">A real-time dashboard to track project progress.</p>
+                            <p className="text-slate-300 mt-2">A real-time dashboard to track project progress.</p>
                         </div>
                         <div className="text-right">
                             {project.code &&
                                 <div className="flex items-center gap-2 justify-end mb-2">
-                                    <span className="text-sm text-slate-400">Project Code: <span className="font-mono text-indigo-300">{project.code}</span></span>
+                                    <span className="text-sm text-slate-400">Project Code: <span className="font-mono text-brand-light">{project.code}</span></span>
                                     {!isDemo &&
                                         <button onClick={handleShareProject} className="p-1.5 bg-slate-700/50 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors" title="Copy Share Link">
                                             <ShareIcon className="w-4 h-4" />
@@ -953,23 +953,23 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 </header>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                     <div className="md:col-span-2 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                        <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-indigo-300 font-semibold">{progress}%</span></div>
-                        <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-indigo-500 h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div>
+                        <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-brand-light font-semibold">{progress}%</span></div>
+                        <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-brand-primary h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div>
                     </div>
-                    <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 flex items-center"><label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label><select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"><option value="All">All Owners</option>{dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}</select></div>
+                    <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 flex items-center"><label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label><select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"><option value="All">All Owners</option>{dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}</select></div>
                 </div>
                  {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
                 <div className="mb-8 flex gap-4">
-                    <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
-                    <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
-                    <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-light bg-brand-primary/10 rounded-lg border border-brand-primary/30 hover:bg-brand-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
+                    <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-light bg-brand-primary/10 rounded-lg border border-brand-primary/30 hover:bg-brand-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
+                    <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-light bg-brand-primary/10 rounded-lg border border-brand-primary/30 hover:bg-brand-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         {isGeneratingUpdate ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <MessageSquareIcon className="w-5 h-5" /> }
                         Generate Slack Update
                     </button>
                 </div>
                 {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} team={dynamicTeam} onCancel={() => setShowAddTaskForm(false)} />}
                 {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
-                {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>) : (
+                {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-primary"></div></div>) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={appId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} />))}</div>
                         <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
@@ -981,8 +981,8 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                     <div className="max-w-4xl mx-auto px-6 text-center">
                          <img src="/mt-logo.png" alt="Meet & Tackle Logo" className="mx-auto mb-6 h-16" />
                         <h2 className="text-3xl font-bold text-white mb-4">Turn Your Own Meetings into Actionable Plans</h2>
-                        <p className="text-indigo-300 mb-8 max-w-2xl mx-auto">Stop letting action items get lost in the shuffle. Click below to use our AI-powered tool for your own projects, absolutely free.</p>
-                        <button onClick={() => navigate('home')} className="px-8 py-4 text-lg font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors">Create Your Free Project Plan</button>
+                        <p className="text-brand-light mb-8 max-w-2xl mx-auto">Stop letting action items get lost in the shuffle. Click below to use our AI-powered tool for your own projects, absolutely free.</p>
+                        <button onClick={() => navigate('home')} className="px-8 py-4 text-lg font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-colors">Create Your Free Project Plan</button>
                     </div>
                 </footer>
             )}
@@ -1013,13 +1013,13 @@ const UserPromptModal = ({ isOpen, onSubmit, onCancel }) => {
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-md focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-md focus:ring-2 focus:ring-brand-primary"
                         placeholder="Your Name"
                         autoFocus
                     />
                     <div className="flex justify-end gap-4 mt-6">
                          <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button>
-                         <button type="submit" disabled={!name.trim()} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50">Save</button>
+                         <button type="submit" disabled={!name.trim()} className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50">Save</button>
                     </div>
                 </form>
             </div>
@@ -1049,7 +1049,7 @@ const SlackUpdateModal = ({ isOpen, onClose, updateText }) => {
                     <pre className="text-slate-200 whitespace-pre-wrap font-sans text-sm">{updateText}</pre>
                 </div>
                 <div className="flex justify-end gap-4">
-                    <button onClick={handleCopy} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 flex items-center gap-2">
+                    <button onClick={handleCopy} className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90 flex items-center gap-2">
                         <ClipboardIcon className="w-4 h-4"/>
                         {copySuccess || 'Copy Update'}
                     </button>
@@ -1059,7 +1059,7 @@ const SlackUpdateModal = ({ isOpen, onClose, updateText }) => {
         </div>
     );
 };
-const UpdateProjectForm = ({ onUpdate, onCancel }) => { const [transcript, setTranscript] = useState(''); const [isUpdating, setIsUpdating] = useState(false); const handleSubmit = async (e) => { e.preventDefault(); setIsUpdating(true); await onUpdate(transcript); setIsUpdating(false); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-2">Update Project with Transcript</h3><p className="text-sm text-slate-400 mb-4">Paste in a follow-up transcript. Meet & Tackle will find updates to existing tasks and add any new tasks it discovers.</p><form onSubmit={handleSubmit}><textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your follow-up meeting transcript here..." className="w-full h-48 bg-slate-700 border border-slate-600 rounded-md p-4 text-sm text-white focus:ring-2 focus:ring-indigo-500" disabled={isUpdating} /><div className="flex justify-end gap-4 mt-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50" disabled={isUpdating || !transcript.trim()}>{isUpdating ? <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>Updating...</> : <><span className="text-lg">✨</span> Update Project</>}</button></div></form></div>);};
+const UpdateProjectForm = ({ onUpdate, onCancel }) => { const [transcript, setTranscript] = useState(''); const [isUpdating, setIsUpdating] = useState(false); const handleSubmit = async (e) => { e.preventDefault(); setIsUpdating(true); await onUpdate(transcript); setIsUpdating(false); onCancel(); }; return (<div className="bg-slate-800/80 border border-brand-primary/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-2">Update Project with Transcript</h3><p className="text-sm text-slate-400 mb-4">Paste in a follow-up transcript. Meet & Tackle will find updates to existing tasks and add any new tasks it discovers.</p><form onSubmit={handleSubmit}><textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your follow-up meeting transcript here..." className="w-full h-48 bg-slate-700 border border-slate-600 rounded-md p-4 text-sm text-white focus:ring-2 focus:ring-brand-primary" disabled={isUpdating} /><div className="flex justify-end gap-4 mt-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50" disabled={isUpdating || !transcript.trim()}>{isUpdating ? <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>Updating...</> : <><span className="text-lg">✨</span> Update Project</>}</button></div></form></div>);};
 const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
     const { addToast } = useToast();
     const isInitialLoad = useRef(true);
@@ -1104,7 +1104,7 @@ const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
     }, [db, appId, projectId, isDemo]);
 
     return (
-        <div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 my-8 backdrop-blur-sm">
+        <div className="bg-slate-800/80 border border-brand-primary/50 rounded-lg p-6 my-8 backdrop-blur-sm">
             <h3 className="text-lg font-bold text-white mb-4">Project Activity</h3>
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                 {activities.map(act => (
@@ -1118,9 +1118,9 @@ const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
         </div>
     );
 };
-const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-indigo-500/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} />))}</div></div>);};
-const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo }) => { const [isExpanded, setIsExpanded] = useState(false); const cardRef = useRef(null); const toggleExpand = () => { if (!window.Flip) return; const state = window.Flip.getState(cardRef.current); setIsExpanded(!isExpanded); window.Flip.from(state, { duration: 0.3, ease: "power1.inOut" }); }; const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending']; const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none'; const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort(); return (<div ref={cardRef} className={`bg-white/5 border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-white/10'}`}><div className="p-4 cursor-pointer" onClick={toggleExpand}><div className="flex justify-between items-center gap-4"><div className="flex items-center flex-1 min-w-0">{deadlineStatus !== 'none' && task.status !== 'Done' && (<AlertTriangleIcon className={`w-5 h-5 mr-3 shrink-0 ${deadlineStatus === 'overdue' ? 'text-red-500' : 'text-yellow-500'}`} />)}<p className="text-slate-100 truncate">{task.title}</p></div><div className="flex items-center space-x-2 sm:space-x-4 shrink-0">{task.dueDate && <span className="text-xs text-slate-400 hidden sm:block">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-CA')}</span>}<span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span><div className="w-24 text-sm text-slate-400 flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div><ChevronDown className={`w-6 h-6 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} /></div></div></div>{isExpanded && (<div className="px-4 pb-4 border-t border-white/10"><div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4"><div><label className="block text-xs text-slate-400 mb-1">Status</label><select value={task.status} onChange={(e) => onUpdate(task.id, {status: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed" disabled={isDemo}>{Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}</select></div><MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} /><div><label className="block text-xs text-slate-400 mb-1">Due Date</label><input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed" disabled={isDemo} /></div></div><CommentSection db={db} appId={appId} projectId={projectId} taskId={taskId} currentUser={userName} logActivity={logActivity} taskTitle={task.title} isDemo={isDemo} /><div className="flex justify-end mt-4"><button onClick={() => onDelete(task.id, task.title)} className="flex items-center text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><Trash2Icon className="w-4 h-4 mr-2" /> Delete Task</button></div></div>)}</div>);};
-const AddTaskForm = ({ onAddTask, categories, team, onCancel }) => { const [title, setTitle] = useState(''); const [category, setCategory] = useState(categories[0] || 'Uncategorized'); const [owners, setOwners] = useState(team[0] ? [team[0]] : []); const [dueDate, setDueDate] = useState(''); const [newCategory, setNewCategory] = useState(''); const [newOwner, setNewOwner] = useState(''); const handleSubmit = (e) => { e.preventDefault(); if (!title.trim()) return; const finalCategory = category === '---new---' ? newCategory.trim() : category; let finalOwners = owners; if (newOwner.trim()) { finalOwners = [...finalOwners, newOwner.trim()]; } if (!finalCategory || finalOwners.length === 0) { alert("Please ensure category and owner are set."); return; } onAddTask({ title: title.trim(), category: finalCategory, owner: finalOwners, dueDate, status: 'Pending' }); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-4">Add New Task</h3><form onSubmit={handleSubmit}><div className="mb-4"><label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">Task Title</label><input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Category / Section</label><select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)} <option value="---new---">-- Add New Category --</option></select>{category === '---new---' && (<input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />)}</div><MultiSelectOwner owners={owners} allOwners={[...team, newOwner.trim()].filter(Boolean)} onUpdate={setOwners} isNewTask={true} newOwner={newOwner} setNewOwner={setNewOwner} /><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Date</label><input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"/></div></div><div className="flex justify-end gap-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500">Add Task</button></div></form></div>);};
+const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-brand-primary/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} />))}</div></div>);};
+const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo }) => { const [isExpanded, setIsExpanded] = useState(false); const cardRef = useRef(null); const toggleExpand = () => { if (!window.Flip) return; const state = window.Flip.getState(cardRef.current); setIsExpanded(!isExpanded); window.Flip.from(state, { duration: 0.3, ease: "power1.inOut" }); }; const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending']; const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none'; const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort(); return (<div ref={cardRef} className={`bg-white/5 border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-white/10'}`}><div className="p-4 cursor-pointer" onClick={toggleExpand}><div className="flex justify-between items-center gap-4"><div className="flex items-center flex-1 min-w-0">{deadlineStatus !== 'none' && task.status !== 'Done' && (<AlertTriangleIcon className={`w-5 h-5 mr-3 shrink-0 ${deadlineStatus === 'overdue' ? 'text-red-500' : 'text-yellow-500'}`} />)}<p className="text-slate-100 truncate">{task.title}</p></div><div className="flex items-center space-x-2 sm:space-x-4 shrink-0">{task.dueDate && <span className="text-xs text-slate-400 hidden sm:block">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-CA')}</span>}<span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span><div className="w-24 text-sm text-slate-400 flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div><ChevronDown className={`w-6 h-6 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} /></div></div></div>{isExpanded && (<div className="px-4 pb-4 border-t border-white/10"><div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4"><div><label className="block text-xs text-slate-400 mb-1">Status</label><select value={task.status} onChange={(e) => onUpdate(task.id, {status: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo}>{Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}</select></div><MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} /><div><label className="block text-xs text-slate-400 mb-1">Due Date</label><input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo} /></div></div><CommentSection db={db} appId={appId} projectId={projectId} taskId={taskId} currentUser={userName} logActivity={logActivity} taskTitle={task.title} isDemo={isDemo} /><div className="flex justify-end mt-4"><button onClick={() => onDelete(task.id, task.title)} className="flex items-center text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><Trash2Icon className="w-4 h-4 mr-2" /> Delete Task</button></div></div>)}</div>);};
+const AddTaskForm = ({ onAddTask, categories, team, onCancel }) => { const [title, setTitle] = useState(''); const [category, setCategory] = useState(categories[0] || 'Uncategorized'); const [owners, setOwners] = useState(team[0] ? [team[0]] : []); const [dueDate, setDueDate] = useState(''); const [newCategory, setNewCategory] = useState(''); const [newOwner, setNewOwner] = useState(''); const handleSubmit = (e) => { e.preventDefault(); if (!title.trim()) return; const finalCategory = category === '---new---' ? newCategory.trim() : category; let finalOwners = owners; if (newOwner.trim()) { finalOwners = [...finalOwners, newOwner.trim()]; } if (!finalCategory || finalOwners.length === 0) { alert("Please ensure category and owner are set."); return; } onAddTask({ title: title.trim(), category: finalCategory, owner: finalOwners, dueDate, status: 'Pending' }); onCancel(); }; return (<div className="bg-slate-800/80 border border-brand-primary/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-4">Add New Task</h3><form onSubmit={handleSubmit}><div className="mb-4"><label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">Task Title</label><input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Category / Section</label><select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)} <option value="---new---">-- Add New Category --</option></select>{category === '---new---' && (<input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />)}</div><MultiSelectOwner owners={owners} allOwners={[...team, newOwner.trim()].filter(Boolean)} onUpdate={setOwners} isNewTask={true} newOwner={newOwner} setNewOwner={setNewOwner} /><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Date</label><input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"/></div></div><div className="flex justify-end gap-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Add Task</button></div></form></div>);};
 const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity, taskTitle, isDemo }) => {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
@@ -1161,14 +1161,14 @@ const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity
                 ))}
             </div>
             <form onSubmit={handleAddComment} className="flex gap-2">
-                <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder={isDemo ? "Commenting is disabled in demo mode" : "Add a comment..."} className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed" disabled={isDemo || !currentUser} />
-                <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo || !newComment.trim() || !currentUser}>Send</button>
+                <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder={isDemo ? "Commenting is disabled in demo mode" : "Add a comment..."} className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo || !currentUser} />
+                <button type="submit" className="px-4 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo || !newComment.trim() || !currentUser}>Send</button>
             </form>
         </div>
     );
 };
 const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, setNewOwner, isDemo }) => { const [isOpen, setIsOpen] = useState(false); const wrapperRef = useRef(null); useEffect(() => { function handleClickOutside(event) { if (wrapperRef.current && !wrapperRef.current.contains(event.target)) { setIsOpen(false); } } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [wrapperRef]); const handleOwnerChange = (owner, checked) => { const newOwners = checked ? [...owners, owner] : owners.filter(o => o !== owner); onUpdate(newOwners); }; return (<div><label className="block text-xs text-slate-400 mb-1">Owner(s)</label><div ref={wrapperRef} className="relative"><button type="button" onClick={() => !isDemo && setIsOpen(!isOpen)} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white text-left flex justify-between items-center disabled:cursor-not-allowed" disabled={isDemo}>
   <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
-  {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-slate-700 cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-    <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-slate-700 border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-indigo-500"/></div>)}</div>)}</div></div>);};
+  {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-slate-700 cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
+    <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-slate-700 border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-brand-primary"/></div>)}</div>)}</div></div>);};
 
