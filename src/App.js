@@ -391,18 +391,33 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
         setError('');
         if (!searchQuery.trim()) return;
         setIsSearching(true);
-        const projectsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
-        const q = query(projectsRef, where("code", "==", searchQuery.trim().toLowerCase()));
-        
+    
+        const oldAppId = 'project-buddy-app';
+        const currentAppId = appId; // 'meetandtackle-app'
+        const searchTerm = searchQuery.trim().toLowerCase();
+    
+        const oldProjectsRef = collection(db, 'artifacts', oldAppId, 'public', 'data', 'projects');
+        const currentProjectsRef = collection(db, 'artifacts', currentAppId, 'public', 'data', 'projects');
+    
+        const qOld = query(oldProjectsRef, where("code", "==", searchTerm));
+        const qCurrent = query(currentProjectsRef, where("code", "==", searchTerm));
+    
         try {
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const projectDoc = querySnapshot.docs[0];
+            const [oldSnapshot, currentSnapshot] = await Promise.all([
+                getDocs(qOld),
+                getDocs(qCurrent)
+            ]);
+    
+            if (!oldSnapshot.empty) {
+                const projectDoc = oldSnapshot.docs[0];
+                navigate('project', projectDoc.id);
+            } else if (!currentSnapshot.empty) {
+                const projectDoc = currentSnapshot.docs[0];
                 navigate('project', projectDoc.id);
             } else {
                 setError("Project not found. Please check the code and try again.");
             }
-        } catch(err) {
+        } catch (err) {
             console.error("Search failed:", err);
             setError("An error occurred during search.");
         } finally {
