@@ -591,6 +591,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     const [userName, setUserName] = useState(null);
     const [showNamePrompt, setShowNamePrompt] = useState(false);
     const [actionToRun, setActionToRun] = useState(null);
+    const [activeAppId, setActiveAppId] = useState(appId); // --- FIX: State to hold the correct appId
 
     const isDemo = projectId === DEMO_PROJECT_ID;
 
@@ -627,6 +628,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 
     useEffect(() => {
         if (isDemo) {
+            setActiveAppId(appId); // For demo, use the default appId
             const today = new Date();
             const demoDeadline = new Date(today.getFullYear(), today.getMonth() + 2, 15); // Deadline in 2 months
             const demoProject = {
@@ -659,7 +661,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         setIsLoading(true);
 
         const fetchAndSubscribe = async () => {
-            const currentAppId = appId;
+            const currentAppId = appId; // The default, new app id
             const oldAppId = 'project-buddy-app';
             let finalProjectRef;
             let finalAppId = currentAppId;
@@ -679,6 +681,9 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                     finalAppId = oldAppId; // Set the correct appId for task fetching
                 }
             }
+            
+            // --- FIX: Set the activeAppId for all other functions to use ---
+            setActiveAppId(finalAppId); 
 
             if (finalProjectRef) {
                 const unsubProject = onSnapshot(finalProjectRef, (docSnap) => {
@@ -693,7 +698,8 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 });
 
                 const tasksCollectionRef = collection(db, 'artifacts', finalAppId, 'public', 'data', 'projects', projectId, 'tasks');
-                const unsubTasks = onSnapshot(tasksCollectionRef, (snapshot) => {
+                const q = query(tasksCollectionRef); // No ordering here, sort client-side
+                const unsubTasks = onSnapshot(q, (snapshot) => {
                     const statusOrder = { 'In Progress': 1, 'Pending': 2, 'Done': 3 };
                     const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     fetchedTasks.sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
@@ -719,7 +725,8 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 
     const handleProjectUpdate = (updates, actor) => {
         if (isDemo || !db || !projectId) return;
-        const projectRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId);
+        // --- FIX: Use activeAppId from state ---
+        const projectRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId);
         try {
             updateDoc(projectRef, updates);
             const field = Object.keys(updates)[0];
@@ -759,10 +766,14 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         }
     };
 
-    const logActivity = async (logMessage) => { if(isDemo || !db) return; const logRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, author: userName, timestamp: serverTimestamp() }); };
-    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
-    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
-    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure?")) { const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
+    // --- FIX: Use activeAppId from state ---
+    const logActivity = async (logMessage) => { if(isDemo || !db) return; const logRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, author: userName, timestamp: serverTimestamp() }); };
+    // --- FIX: Use activeAppId from state ---
+    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
+    // --- FIX: Use activeAppId from state ---
+    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
+    // --- FIX: Use activeAppId from state ---
+    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure? This action cannot be undone.")) { const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
 
     const handleShareProject = () => {
         const url = `${window.location.origin}?id=${projectId}`;
@@ -788,7 +799,8 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 const { newTasks, taskUpdates } = JSON.parse(result.candidates[0].content.parts[0].text);
                 let summaryParts = [];
                 if (newTasks?.length > 0) {
-                    const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks');
+                    // --- FIX: Use activeAppId from state ---
+                    const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks');
                     const sanitizedNewTasks = newTasks.map(task => ({
                         title: task.title || 'Untitled Task',
                         owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
@@ -804,9 +816,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                     for (const update of taskUpdates) {
                         const originalTask = tasks.find(t => t.title.toLowerCase() === update.title.toLowerCase());
                         if (originalTask) {
-                            const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', originalTask.id);
+                            // --- FIX: Use activeAppId from state ---
+                            const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', originalTask.id);
                             await updateDoc(taskRef, { status: update.status });
-                            const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', originalTask.id, 'comments');
+                            // --- FIX: Use activeAppId from state ---
+                            const commentsRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', originalTask.id, 'comments');
                             await addDoc(commentsRef, { text: `**Update detected:**\n${update.comment}`, author: '✨ Meet & Tackle AI', timestamp: serverTimestamp() });
                         }
                     }
@@ -1022,8 +1036,8 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
                 {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-primary"></div></div>) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={appId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} />))}</div>
-                        <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
+                        <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={activeAppId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} />))}</div>
+                        <div className="lg:col-span-1"><ActivityLog db={db} appId={activeAppId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
                     </div>
                 )}
             </div>
@@ -1116,8 +1130,9 @@ const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
     const isInitialLoad = useRef(true);
 
     useEffect(() => {
-        if (isDemo || !db) return;
+        if (isDemo || !db || !appId) return;
 
+        // --- FIX: This now uses the correct appId passed down as a prop ---
         const logCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog');
         const q = query(logCollectionRef, orderBy('timestamp', 'desc'));
         
@@ -1144,7 +1159,8 @@ const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
             ]);
             return;
         }
-        if (!db) return;
+        if (!db || !appId) return;
+        // --- FIX: This now uses the correct appId passed down as a prop ---
         const logCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog');
         const q = query(logCollectionRef, orderBy('timestamp', 'desc'));
         const unsub = onSnapshot(q, (snap) => {
@@ -1182,7 +1198,8 @@ const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity
             ]);
             return;
         }
-        if (!db || !taskId || !projectId) return;
+        if (!db || !appId || !taskId || !projectId) return; // --- FIX: check for appId
+        // --- FIX: Use correct appId passed as a prop ---
         const commentsQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments'), orderBy('timestamp', 'asc'));
         const unsubscribe = onSnapshot(commentsQuery, (snapshot) => { setComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
         return () => unsubscribe();
@@ -1192,6 +1209,7 @@ const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity
         e.preventDefault();
         const trimmedComment = newComment.trim();
         if (isDemo || !trimmedComment || !db) return;
+        // --- FIX: Use correct appId passed as a prop ---
         const commentsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments');
         await addDoc(commentsCollectionRef, { text: trimmedComment, author: currentUser || 'Guest', timestamp: serverTimestamp() });
         if (logActivity) {
