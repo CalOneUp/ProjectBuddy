@@ -432,12 +432,12 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                 <p className="text-indigo-300 text-lg mt-4">Turn your planning meetings into projects.</p>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:items-start">
                 <div className="lg:col-span-3">
-                    <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl h-full flex flex-col">
-                        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="w-full flex-grow bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isGenerating}/>
-                        <div className="text-center py-4">
-                            <p className="text-slate-400">
+                    <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl">
+                        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="w-full h-96 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isGenerating}/>
+                        <div className="mt-4 flex justify-between items-center">
+                            <p className="text-slate-400 text-sm">
                                 Or{" "}
                                 <button
                                     onClick={() => navigate('project', DEMO_PROJECT_ID)}
@@ -445,14 +445,13 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                                 >
                                     view an example project
                                 </button>
-                                {" "}to see how it works.
                             </p>
-                        </div>
-                        <div className="flex justify-end items-center">
-                            {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
-                            <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
-                                {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
-                            </button>
+                            <div className="flex items-center">
+                                {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
+                                <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
+                                    {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
