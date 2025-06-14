@@ -41,8 +41,8 @@ const getDaysRemaining = (deadline) => {
 const formatTimestamp = (firebaseTimestamp) => { if (!firebaseTimestamp?.toDate) return 'Just now'; return firebaseTimestamp.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }); };
 
 // --- Meta Tag Management Functions ---
-const defaultTitle = "Project Buddy | Turn Meetings into Actionable Projects";
-const defaultDescription = "Stop letting action items get lost. Project Buddy uses AI to analyze your meeting transcripts and instantly create a collaborative project plan. Paste a transcript to get started.";
+const defaultTitle = "Meet & Tackle | Turn Meetings into Actionable Projects";
+const defaultDescription = "Stop letting action items get lost. Meet & Tackle uses AI to analyze your meeting transcripts and instantly create a collaborative project plan. Paste a transcript to get started.";
 
 const updateMetaTags = (title, description) => {
     document.title = title;
@@ -168,8 +168,8 @@ export default function App() {
                         }
                     `}
                 </style>
-                { route.page === 'home' && <HomePage db={db} appId="project-buddy-app" navigate={navigate} setNotification={setNotification} /> }
-                { route.page === 'project' && <ProjectPage db={db} appId="project-buddy-app" projectId={route.projectId} navigate={navigate} notification={notification} setNotification={setNotification} /> }
+                { route.page === 'home' && <HomePage db={db} appId="meetandtackle-app" navigate={navigate} setNotification={setNotification} /> }
+                { route.page === 'project' && <ProjectPage db={db} appId="meetandtackle-app" projectId={route.projectId} navigate={navigate} notification={notification} setNotification={setNotification} /> }
             </div>
         </ToastProvider>
     );
@@ -179,7 +179,7 @@ export default function App() {
 const recentProjectsManager = {
     get: () => {
         try {
-            const projects = localStorage.getItem('projectBuddy_recentProjects');
+            const projects = localStorage.getItem('meetandtackle_recentProjects');
             return projects ? JSON.parse(projects) : [];
         } catch (e) {
             console.error("Failed to parse recent projects from localStorage", e);
@@ -193,7 +193,7 @@ const recentProjectsManager = {
         projects.unshift(project);
         projects = projects.slice(0, 5);
         try {
-            localStorage.setItem('projectBuddy_recentProjects', JSON.stringify(projects));
+            localStorage.setItem('meetandtackle_recentProjects', JSON.stringify(projects));
         } catch (e) {
             console.error("Failed to save recent projects to localStorage", e);
         }
@@ -365,7 +365,7 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
             await Promise.all(tasksToAdd.map(task => addDoc(tasksCollectionRef, task)));
             
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'activityLog'), { 
-                log: `Project created by ✨ Project Buddy AI`, 
+                log: `Project created by ✨ Meet & Tackle AI`, 
                 timestamp: serverTimestamp() 
             });
             
@@ -414,8 +414,8 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
         <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
             <header className="text-center mb-12">
                 <div className="flex justify-center items-center gap-4">
-                    <img src="https://i.ibb.co/VpkKcxRv/Untitled-design.png" alt="Project Buddy Mascot" className="w-16 h-16" onError={(e) => { e.target.style.display='none'; }}/>
-                    <h1 className="text-5xl font-poppins font-bold text-white tracking-tight">Project Buddy</h1>
+                    <img src="https://i.ibb.co/VpkKcxRv/Untitled-design.png" alt="Meet & Tackle Mascot" className="w-16 h-16" onError={(e) => { e.target.style.display='none'; }}/>
+                    <h1 className="text-5xl font-poppins font-bold text-white tracking-tight">Meet & Tackle</h1>
                 </div>
                 <p className="text-indigo-300 text-lg mt-4">Turn your planning meetings into projects.</p>
             </header>
@@ -506,7 +506,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     }, [notification, setNotification]);
 
     useEffect(() => {
-        const storedName = localStorage.getItem('projectBuddy_userName');
+        const storedName = localStorage.getItem('meetandtackle_userName');
         if (storedName) {
             setUserName(storedName);
         } else if (!isDemo) { // Don't prompt for name in demo mode
@@ -541,7 +541,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 isDemo: true,
             };
             setProject(demoProject);
-            updateMetaTags(`Project: ${demoProject.name}`, `View the project plan for ${demoProject.name} on Project Buddy.`);
+            updateMetaTags(`Project: ${demoProject.name}`, `View the project plan for ${demoProject.name} on Meet & Tackle.`);
             
             const demoTasks = [
                 { id: 'demo-1', title: 'Draft initial design mockups', owner: ['Alice'], category: 'Design', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 7)).toISOString().split('T')[0] },
@@ -572,7 +572,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 setProjectName(projectData.name);
                 setProjectDeadline(projectData.deadline || '');
                 recentProjectsManager.add({ id: projectData.id, name: projectData.name });
-                updateMetaTags(`Project: ${projectData.name}`, `View the project plan for ${projectData.name} on Project Buddy.`);
+                updateMetaTags(`Project: ${projectData.name}`, `View the project plan for ${projectData.name} on Meet & Tackle.`);
             } else {
                 console.error("Project not found!");
                 setProject(null);
@@ -675,7 +675,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         dueDate: task.dueDate || ''
                     }));
                     await Promise.all(sanitizedNewTasks.map(task => addDoc(tasksRef, task)));
-                    logActivity(`Project updated with ${newTasks.length} new task(s) from transcript by ✨ Project Buddy AI`);
+                    logActivity(`Project updated with ${newTasks.length} new task(s) from transcript by ✨ Meet & Tackle AI`);
                     summaryParts.push(`Added ${newTasks.length} new task(s).`);
                 }
                 if (taskUpdates?.length > 0) {
@@ -685,7 +685,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                             const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', originalTask.id);
                             await updateDoc(taskRef, { status: update.status });
                             const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', originalTask.id, 'comments');
-                            await addDoc(commentsRef, { text: `**Update detected:**\n${update.comment}`, author: '✨ Project Buddy AI', timestamp: serverTimestamp() });
+                            await addDoc(commentsRef, { text: `**Update detected:**\n${update.comment}`, author: '✨ Meet & Tackle AI', timestamp: serverTimestamp() });
                         }
                     }
                     logActivity(`AI applied ${taskUpdates.length} update(s) from the transcript.`);
@@ -784,7 +784,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 isOpen={showNamePrompt}
                 onSubmit={(name) => {
                     setUserName(name);
-                    localStorage.setItem('projectBuddy_userName', name);
+                    localStorage.setItem('meetandtackle_userName', name);
                     if(actionToRun) {
                         actionToRun(name);
                     }
@@ -808,7 +808,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                                 onClick={() => navigate('home')}
                                 className="cursor-pointer hover:text-indigo-300 transition-colors duration-200"
                             >
-                                Project Buddy
+                                Meet & Tackle
                             </span>
                             <span className="text-slate-500 mx-2">/</span>
                             {isEditingName ? (
@@ -976,7 +976,7 @@ const SlackUpdateModal = ({ isOpen, onClose, updateText }) => {
         </div>
     );
 };
-const UpdateProjectForm = ({ onUpdate, onCancel }) => { const [transcript, setTranscript] = useState(''); const [isUpdating, setIsUpdating] = useState(false); const handleSubmit = async (e) => { e.preventDefault(); setIsUpdating(true); await onUpdate(transcript); setIsUpdating(false); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-2">Update Project with Transcript</h3><p className="text-sm text-slate-400 mb-4">Paste in a follow-up transcript. ProjectBuddy will find updates to existing tasks and add any new tasks it discovers.</p><form onSubmit={handleSubmit}><textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your follow-up meeting transcript here..." className="w-full h-48 bg-slate-700 border border-slate-600 rounded-md p-4 text-sm text-white focus:ring-2 focus:ring-indigo-500" disabled={isUpdating} /><div className="flex justify-end gap-4 mt-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50" disabled={isUpdating || !transcript.trim()}>{isUpdating ? <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>Updating...</> : <><span className="text-lg">✨</span> Update Project</>}</button></div></form></div>);};
+const UpdateProjectForm = ({ onUpdate, onCancel }) => { const [transcript, setTranscript] = useState(''); const [isUpdating, setIsUpdating] = useState(false); const handleSubmit = async (e) => { e.preventDefault(); setIsUpdating(true); await onUpdate(transcript); setIsUpdating(false); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-2">Update Project with Transcript</h3><p className="text-sm text-slate-400 mb-4">Paste in a follow-up transcript. Meet & Tackle will find updates to existing tasks and add any new tasks it discovers.</p><form onSubmit={handleSubmit}><textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your follow-up meeting transcript here..." className="w-full h-48 bg-slate-700 border border-slate-600 rounded-md p-4 text-sm text-white focus:ring-2 focus:ring-indigo-500" disabled={isUpdating} /><div className="flex justify-end gap-4 mt-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50" disabled={isUpdating || !transcript.trim()}>{isUpdating ? <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>Updating...</> : <><span className="text-lg">✨</span> Update Project</>}</button></div></form></div>);};
 const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
     const { addToast } = useToast();
     const isInitialLoad = useRef(true);
@@ -1006,7 +1006,7 @@ const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
     useEffect(() => {
         if (isDemo) {
             setActivities([
-                { id: 1, log: '✨ Project Buddy AI created this demo project.', timestamp: { toDate: () => new Date() } },
+                { id: 1, log: '✨ Meet & Tackle AI created this demo project.', timestamp: { toDate: () => new Date() } },
             ]);
             return;
         }
