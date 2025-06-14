@@ -6,9 +6,10 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'brand-dark': '#0f172a', // Deep Navy Blue
-        'brand-primary': '#f97316', // Vibrant Orange
-        'brand-light': '#60a5fa', // Light Blue Accent
+        'brand-dark': '#1a202c',       // Very Dark Blue
+        'brand-surface': '#2d3748',    // Dark Slate
+        'brand-primary': '#06b6d4',     // Vibrant Teal
+        'brand-light': '#64748b',       // Muted Blue/Slate
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
