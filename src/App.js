@@ -14,7 +14,9 @@ const ShareIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24"
 const ClipboardIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>);
 const MessageSquareIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>);
 const EyeIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>);
-
+const ZapIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>);
+const FileTextIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>);
+const UsersIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>);
 
 // --- App Data & Config ---
 const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
@@ -486,25 +488,30 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                 </div>
             </div>
 
-            <div className="my-16 py-12 bg-slate-800/50 rounded-lg">
-                <div className="max-w-4xl mx-auto px-6">
-                    <h2 className="text-3xl font-bold text-center text-white mb-4">How It Works</h2>
-                    <p className="text-center text-indigo-300 mb-12">Turn messy meeting notes into a clear, actionable project plan in three simple steps.</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                        <div>
-                            <div className="text-4xl mb-4">1.</div>
-                            <h3 className="text-xl font-semibold text-white mb-2">Paste Your Transcript</h3>
-                            <p className="text-slate-400">Simply paste the raw text from your Zoom, Google Meet, or Teams meeting transcription.</p>
+            <div className="my-24 py-16 bg-slate-800/50 rounded-2xl">
+                <div className="max-w-5xl mx-auto px-6 text-center">
+                    <h2 className="text-3xl font-bold text-white mb-4">Never Let an Action Item Slip Through the Cracks Again</h2>
+                    <p className="text-indigo-300 mb-12 max-w-2xl mx-auto">Meet & Tackle is more than just an AI meeting summary tool. It's an intelligent project manager that lives in your browser, helping you and your team stay aligned and productive.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
+                            <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
+                            <h3 className="text-xl font-semibold text-white mb-2">AI Project Creation</h3>
+                            <p className="text-slate-400">Paste any meeting transcript and our AI will instantly generate a complete project plan, complete with tasks, owners, and categories.</p>
                         </div>
-                        <div>
-                            <div className="text-4xl mb-4">2.</div>
-                            <h3 className="text-xl font-semibold text-white mb-2">AI-Powered Analysis</h3>
-                            <p className="text-slate-400">Our AI analyzes the conversation, identifying tasks, owners, and deadlines that were discussed.</p>
+                        <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
+                             <ZapIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
+                            <h3 className="text-xl font-semibold text-white mb-2">Automatic Project Updates</h3>
+                            <p className="text-slate-400">Got a follow-up meeting? Just paste the new transcript. Our AI will intelligently update existing tasks and add new ones.</p>
                         </div>
-                        <div>
-                            <div className="text-4xl mb-4">3.</div>
-                            <h3 className="text-xl font-semibold text-white mb-2">Get Your Project Plan</h3>
-                            <p className="text-slate-400">Receive a complete, collaborative project plan in seconds. No more lost action items.</p>
+                        <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
+                           <UsersIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
+                            <h3 className="text-xl font-semibold text-white mb-2">Collaborative Dashboard</h3>
+                            <p className="text-slate-400">Share your project with a unique code. Everyone can see the real-time status, add comments, and update tasks together.</p>
+                        </div>
+                        <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
+                           <MessageSquareIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
+                            <h3 className="text-xl font-semibold text-white mb-2">Instant Slack Updates</h3>
+                            <p className="text-slate-400">With one click, generate a perfectly formatted Slack message to keep your team in the loop on project progress and at-risk tasks.</p>
                         </div>
                     </div>
                 </div>
@@ -1152,3 +1159,4 @@ const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, se
   <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
   {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-slate-700 cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
     <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-slate-700 border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-indigo-500"/></div>)}</div>)}</div></div>);};
+
