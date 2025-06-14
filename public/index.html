@@ -35,6 +35,7 @@ const getDeadlineStatus = (dueDate) => {
 const getDaysRemaining = (deadline) => {
     if(!deadline) return 0;
     const today = new Date();
+    // FIX: Make sure there is no space in today.getTime()
     const diffTime = new Date(deadline + 'T00:00:00').getTime() - today.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
