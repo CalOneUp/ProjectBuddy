@@ -426,63 +426,67 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
             <header className="text-center mb-12">
                 <img src="/mt-logo.png" alt="Meet & Tackle Logo" className="mx-auto mb-4 max-w-sm" />
                 <p className="text-indigo-300 text-lg mt-4">Turn your planning meetings into projects.</p>
             </header>
 
-            <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl mb-6">
-                <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="w-full h-64 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isGenerating}/>
-                <div className="mt-4 flex justify-end items-center">
-                    {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
-                    <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
-                        {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
-                    </button>
-                </div>
-            </div>
-
-            <div className="text-center mb-12">
-                <p className="text-slate-400">
-                    Or{" "}
-                    <button
-                        onClick={() => navigate('project', DEMO_PROJECT_ID)}
-                        className="text-indigo-400 hover:text-indigo-300 underline font-semibold"
-                    >
-                        view an example project
-                    </button>
-                    {" "}to see how it works.
-                </p>
-            </div>
-
-
-            <div className="text-center">
-                 <h2 className="text-2xl font-bold text-white mb-4">Already working on a project?</h2>
-                <div className="max-w-lg mx-auto bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl">
-                    <form onSubmit={handleSearch} className="flex gap-2">
-                        <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />
-                        <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching}>
-                            {isSearching ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <SearchIcon className="w-5 h-5" />}
-                        </button>
-                    </form>
-                     {error && !isGenerating && <p className="text-sm text-red-400 mt-4">{error}</p>}
-                </div>
-            </div>
-
-
-            {recentProjects.length > 0 && (
-                <div className="mt-12">
-                    <h2 className="text-2xl font-bold text-white mb-4 text-center">Recently Viewed Projects</h2>
-                    <div className="max-w-lg mx-auto space-y-3">
-                        {recentProjects.map(proj => (
-                            <div key={proj.id} onClick={() => navigate('project', proj.id)} className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-indigo-500 flex justify-between items-center cursor-pointer transition-colors">
-                                <span className="font-semibold text-slate-200">{proj.name}</span>
-                                <ExternalLinkIcon className="w-5 h-5 text-slate-400" />
-                            </div>
-                        ))}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
+                <div className="lg:col-span-3">
+                    <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl h-full">
+                        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="w-full h-96 bg-slate-900 border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 placeholder-slate-500" disabled={isGenerating}/>
+                        <div className="mt-4 flex justify-end items-center">
+                            {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
+                            <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
+                                {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
+                            </button>
+                        </div>
                     </div>
                 </div>
-            )}
+
+                <div className="lg:col-span-2">
+                    <div className="text-center mb-8">
+                        <p className="text-slate-400">
+                            Or{" "}
+                            <button
+                                onClick={() => navigate('project', DEMO_PROJECT_ID)}
+                                className="text-indigo-400 hover:text-indigo-300 underline font-semibold"
+                            >
+                                view an example project
+                            </button>
+                            {" "}to see how it works.
+                        </p>
+                    </div>
+
+                    <div className="text-center mb-8">
+                        <h2 className="text-2xl font-bold text-white mb-4">Already working on a project?</h2>
+                        <div className="max-w-lg mx-auto bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl">
+                            <form onSubmit={handleSearch} className="flex gap-2">
+                                <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />
+                                <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching}>
+                                    {isSearching ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <SearchIcon className="w-5 h-5" />}
+                                </button>
+                            </form>
+                            {error && !isGenerating && <p className="text-sm text-red-400 mt-4">{error}</p>}
+                        </div>
+                    </div>
+
+                    {recentProjects.length > 0 && (
+                        <div>
+                            <h2 className="text-2xl font-bold text-white mb-4 text-center">Recently Viewed Projects</h2>
+                            <div className="max-w-lg mx-auto space-y-3">
+                                {recentProjects.map(proj => (
+                                    <div key={proj.id} onClick={() => navigate('project', proj.id)} className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-indigo-500 flex justify-between items-center cursor-pointer transition-colors">
+                                        <span className="font-semibold text-slate-200">{proj.name}</span>
+                                        <ExternalLinkIcon className="w-5 h-5 text-slate-400" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
