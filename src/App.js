@@ -102,12 +102,59 @@ export default function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [notification, setNotification] = useState(null);
 
-    // Simplified state-based navigation
+    // This effect handles URL changes and browser navigation (back/forward)
+    useEffect(() => {
+        const handlePopState = (event) => {
+            if (event.state) {
+                setRoute(event.state);
+            } else {
+                // This handles going back to the initial state
+                const queryParams = new URLSearchParams(window.location.search);
+                const projectId = queryParams.get('id');
+                if (projectId) {
+                    setRoute({ page: 'project', projectId });
+                } else {
+                    setRoute({ page: 'home', projectId: null });
+                }
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+
+        // Set initial route based on the URL when the app first loads
+        const queryParams = new URLSearchParams(window.location.search);
+        const initialProjectId = queryParams.get('id');
+        if (initialProjectId) {
+            setRoute({ page: 'project', projectId: initialProjectId });
+        } else {
+             setRoute({ page: 'home', projectId: null });
+        }
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, []);
+
+
+    // This effect syncs the app's route state to the browser's URL and history
+    useEffect(() => {
+        const { page, projectId } = route;
+        const url = page === 'project' && projectId ? `?id=${projectId}` : '/';
+        
+        // Prevent pushing the same state to history
+        if (window.location.search !== url && url.startsWith('?')) {
+            window.history.pushState(route, '', url);
+        } else if (window.location.pathname !== url && url === '/') {
+             window.history.pushState(route, '', url);
+        }
+
+    }, [route]);
+    
     const navigate = (page, projectId = null) => {
         setRoute({ page, projectId });
     };
 
-    // This hook prevents the backspace key from triggering browser navigation
+    // This hook prevents the backspace key from triggering browser navigation outside of inputs
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Backspace') {
@@ -122,15 +169,6 @@ export default function App() {
         return () => {
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, []);
-
-    // This hook runs once on initial load to check for a shared project ID in the URL
-    useEffect(() => {
-        const queryParams = new URLSearchParams(window.location.search);
-        const sharedProjectId = queryParams.get('id');
-        if (sharedProjectId) {
-            navigate('project', sharedProjectId);
-        }
     }, []);
 
     // Initialize Firebase
