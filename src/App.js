@@ -485,6 +485,30 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                     )}
                 </div>
             </div>
+
+            <div className="my-16 py-12 bg-slate-800/50 rounded-lg">
+                <div className="max-w-4xl mx-auto px-6">
+                    <h2 className="text-3xl font-bold text-center text-white mb-4">How It Works</h2>
+                    <p className="text-center text-indigo-300 mb-12">Turn messy meeting notes into a clear, actionable project plan in three simple steps.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                        <div>
+                            <div className="text-4xl mb-4">1.</div>
+                            <h3 className="text-xl font-semibold text-white mb-2">Paste Your Transcript</h3>
+                            <p className="text-slate-400">Simply paste the raw text from your Zoom, Google Meet, or Teams meeting transcription.</p>
+                        </div>
+                        <div>
+                            <div className="text-4xl mb-4">2.</div>
+                            <h3 className="text-xl font-semibold text-white mb-2">AI-Powered Analysis</h3>
+                            <p className="text-slate-400">Our AI analyzes the conversation, identifying tasks, owners, and deadlines that were discussed.</p>
+                        </div>
+                        <div>
+                            <div className="text-4xl mb-4">3.</div>
+                            <h3 className="text-xl font-semibold text-white mb-2">Get Your Project Plan</h3>
+                            <p className="text-slate-400">Receive a complete, collaborative project plan in seconds. No more lost action items.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
