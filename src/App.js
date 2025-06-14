@@ -260,7 +260,7 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
         setError('');
         
         const today = new Date();
-        const formattedDate = `<span class="math-inline">\{today\.getFullYear\(\)\}\-</span>{String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
 
         // Smartly extract attendees from the transcript
@@ -601,7 +601,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         try {
             updateDoc(projectRef, updates);
             const field = Object.keys(updates)[0];
-            logActivity(`${actor} updated the project <span class="math-inline">\{field\} to "</span>{updates[field]}"`);
+            logActivity(`${actor} updated the project ${field} to "${updates[field]}"`);
         } catch (e) {
             console.error("Error updating project details: ", e);
         }
@@ -638,12 +638,12 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     };
 
     const logActivity = async (logMessage) => { if(isDemo || !db) return; const logRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, author: userName, timestamp: serverTimestamp() }); };
-    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`<span class="math-inline">\{name\} updated status of '</span>{originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
-    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`<span class="math-inline">\{name\} added new task\: "</span>{newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
-    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure?")) { const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`<span class="math-inline">\{name\} deleted task\: "</span>{taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
+    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
+    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
+    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure?")) { const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
 
     const handleShareProject = () => {
-        const url = `<span class="math-inline">\{window\.location\.origin\}?id\=</span>{projectId}`;
+        const url = `${window.location.origin}?id=${projectId}`;
         navigator.clipboard.writeText(url).then(() => {
             setCopyFeedback('Link Copied!');
             setTimeout(() => setCopyFeedback(''), 2000);
@@ -781,4 +781,310 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     return (
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
             <UserPromptModal
-                isOpen={show
+                isOpen={showNamePrompt}
+                onSubmit={(name) => {
+                    setUserName(name);
+                    localStorage.setItem('meetandtackle_userName', name);
+                    if(actionToRun) {
+                        actionToRun(name);
+                    }
+                    setShowNamePrompt(false);
+                    setActionToRun(null);
+                }}
+                onCancel={() => setShowNamePrompt(false)}
+            />
+            <SlackUpdateModal isOpen={!!slackUpdate} onClose={() => setSlackUpdate(null)} updateText={slackUpdate} />
+            {notification && (
+                <div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center">
+                    <span>{notification}</span>
+                    <button onClick={() => setNotification(null)} className="font-bold text-xl ml-4">&times;</button>
+                </div>
+            )}
+            <header className="mb-8">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h1 className="text-4xl font-poppins font-bold text-white tracking-tight mb-2">
+                            <span
+                                onClick={() => navigate('home')}
+                                className="cursor-pointer hover:text-indigo-300 transition-colors duration-200"
+                            >
+                                Meet & Tackle
+                            </span>
+                            <span className="text-slate-500 mx-2">/</span>
+                            {isEditingName ? (
+                                <input
+                                    type="text"
+                                    value={projectName}
+                                    onChange={(e) => setProjectName(e.target.value)}
+                                    onBlur={handleSaveName}
+                                    onKeyDown={handleNameKeydown}
+                                    className="text-4xl font-poppins font-bold bg-transparent text-indigo-400 tracking-tight focus:outline-none focus:bg-slate-800/50 rounded-md"
+                                    style={{ width: `${projectName.length + 2}ch`}} // Dynamically size input
+                                    autoFocus
+                                    disabled={isDemo}
+                                />
+                            ) : (
+                                <span
+                                    className={`text-indigo-400 ${!isDemo && 'cursor-pointer hover:underline'}`}
+                                    onClick={() => { if (!isDemo) requireName(() => setIsEditingName(true)) }}
+                                >
+                                    {project.name}
+                                </span>
+                            )}
+                        </h1>
+                        <p className="text-indigo-300 mt-2">A real-time dashboard to track project progress.</p>
+                    </div>
+                    <div className="text-right">
+                        {project.code &&
+                            <div className="flex items-center gap-2 justify-end mb-2">
+                                <span className="text-sm text-slate-400">Project Code: <span className="font-mono text-indigo-300">{project.code}</span></span>
+                                {!isDemo &&
+                                    <button onClick={handleShareProject} className="p-1.5 bg-slate-700/50 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors" title="Copy Share Link">
+                                        <ShareIcon className="w-4 h-4" />
+                                    </button>
+                                }
+                                {copyFeedback && <span className="text-xs text-green-400">{copyFeedback}</span>}
+                            </div>
+                        }
+                        {isEditingDeadline ? (
+                             <input
+                                type="date"
+                                value={projectDeadline}
+                                onChange={(e) => setProjectDeadline(e.target.value)}
+                                onBlur={handleSaveDeadline}
+                                onKeyDown={handleDeadlineKeydown}
+                                className="bg-slate-700 text-white rounded-md p-1"
+                                autoFocus
+                                disabled={isDemo}
+                             />
+                        ) : (
+                            <div className={`${!isDemo && 'cursor-pointer'} hover:bg-slate-800/50 p-1 rounded-md`} onClick={() => { if (!isDemo) requireName(() => setIsEditingDeadline(true)) } }>
+                                <div className="text-sm text-slate-400">Project Deadline</div>
+                                {project.deadline ? (
+                                    <>
+                                        <div className="text-2xl font-bold text-white">{new Date(project.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                                        <div className={`text-sm font-semibold ${daysRemaining < 0 ? 'text-red-400' : 'text-slate-300'}`}>{daysRemaining >= 0 ? `${daysRemaining} days remaining` : `${Math.abs(daysRemaining)} days overdue`}</div>
+                                    </>
+                                ) : (
+                                    <div className="text-lg text-slate-400">Set Deadline</div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {isDemo &&
+                    <div className="mt-4 p-3 bg-yellow-400/10 border border-yellow-400/30 text-yellow-300 rounded-lg text-sm flex items-center gap-3">
+                        <EyeIcon className="w-5 h-5"/>
+                        You are viewing a read-only demo project. To create your own, please go back to the homepage.
+                    </div>
+                }
+            </header>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="md:col-span-2 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                    <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-indigo-300 font-semibold">{progress}%</span></div>
+                    <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-indigo-500 h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div>
+                </div>
+                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 flex items-center"><label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label><select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"><option value="All">All Owners</option>{dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}</select></div>
+            </div>
+             {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
+            <div className="mb-8 flex gap-4">
+                <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
+                <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
+                <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isGeneratingUpdate ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <MessageSquareIcon className="w-5 h-5" /> }
+                    Generate Slack Update
+                </button>
+            </div>
+            {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} team={dynamicTeam} onCancel={() => setShowAddTaskForm(false)} />}
+            {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
+            {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={appId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} />))}</div>
+                    <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Sub-Components for Project Page ---
+const UserPromptModal = ({ isOpen, onSubmit, onCancel }) => {
+    const [name, setName] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (name.trim()) {
+            onSubmit(name.trim());
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 shadow-2xl max-w-sm w-full mx-4">
+                <h3 className="text-lg font-bold text-white mb-2">What's your name?</h3>
+                <p className="text-slate-400 text-sm mb-6">Please enter your name to attribute your changes.</p>
+                <form onSubmit={handleSubmit}>
+                    <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-md focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Your Name"
+                        autoFocus
+                    />
+                    <div className="flex justify-end gap-4 mt-6">
+                         <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button>
+                         <button type="submit" disabled={!name.trim()} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const SlackUpdateModal = ({ isOpen, onClose, updateText }) => {
+    const [copySuccess, setCopySuccess] = useState('');
+
+    const handleCopy = () => {
+        if (updateText) {
+            navigator.clipboard.writeText(updateText).then(() => {
+                setCopySuccess('Copied!');
+                setTimeout(() => setCopySuccess(''), 2000);
+            });
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 shadow-2xl max-w-2xl w-full mx-4" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-white mb-2">Slack Project Update</h3>
+                <div className="bg-slate-900/50 rounded-md p-4 my-4 max-h-[60vh] overflow-y-auto">
+                    <pre className="text-slate-200 whitespace-pre-wrap font-sans text-sm">{updateText}</pre>
+                </div>
+                <div className="flex justify-end gap-4">
+                    <button onClick={handleCopy} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 flex items-center gap-2">
+                        <ClipboardIcon className="w-4 h-4"/>
+                        {copySuccess || 'Copy Update'}
+                    </button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Close</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+const UpdateProjectForm = ({ onUpdate, onCancel }) => { const [transcript, setTranscript] = useState(''); const [isUpdating, setIsUpdating] = useState(false); const handleSubmit = async (e) => { e.preventDefault(); setIsUpdating(true); await onUpdate(transcript); setIsUpdating(false); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-2">Update Project with Transcript</h3><p className="text-sm text-slate-400 mb-4">Paste in a follow-up transcript. Meet & Tackle will find updates to existing tasks and add any new tasks it discovers.</p><form onSubmit={handleSubmit}><textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your follow-up meeting transcript here..." className="w-full h-48 bg-slate-700 border border-slate-600 rounded-md p-4 text-sm text-white focus:ring-2 focus:ring-indigo-500" disabled={isUpdating} /><div className="flex justify-end gap-4 mt-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50" disabled={isUpdating || !transcript.trim()}>{isUpdating ? <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>Updating...</> : <><span className="text-lg">✨</span> Update Project</>}</button></div></form></div>);};
+const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
+    const { addToast } = useToast();
+    const isInitialLoad = useRef(true);
+
+    useEffect(() => {
+        if (isDemo || !db) return;
+
+        const logCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog');
+        const q = query(logCollectionRef, orderBy('timestamp', 'desc'));
+        
+        const unsub = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" && !isInitialLoad.current) {
+                    const newLog = change.doc.data();
+                    if (newLog.author !== userName) { // Don't show toast for your own actions
+                        addToast(newLog.log);
+                    }
+                }
+            });
+            isInitialLoad.current = false;
+        }); 
+
+        return () => unsub();
+    }, [db, appId, projectId, isDemo, addToast, userName]);
+
+    const [activities, setActivities] = useState([]);
+    useEffect(() => {
+        if (isDemo) {
+            setActivities([
+                { id: 1, log: '✨ Meet & Tackle AI created this demo project.', timestamp: { toDate: () => new Date() } },
+            ]);
+            return;
+        }
+        if (!db) return;
+        const logCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'activityLog');
+        const q = query(logCollectionRef, orderBy('timestamp', 'desc'));
+        const unsub = onSnapshot(q, (snap) => {
+            const fetchedActivities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setActivities(fetchedActivities);
+        });
+        return () => unsub();
+    }, [db, appId, projectId, isDemo]);
+
+    return (
+        <div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 my-8 backdrop-blur-sm">
+            <h3 className="text-lg font-bold text-white mb-4">Project Activity</h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                {activities.map(act => (
+                    <div key={act.id} className="text-sm border-l-2 border-slate-700 pl-3">
+                        <p className="text-slate-200 whitespace-pre-wrap">{act.log}</p>
+                        <p className="text-xs text-slate-400 mt-1">{formatTimestamp(act.timestamp)}</p>
+                    </div>
+                ))}
+                {isDemo && <div className="text-sm text-slate-400 pl-3 pt-2 border-t border-slate-700 mt-3">Activity is disabled for demo projects.</div>}
+            </div>
+        </div>
+    );
+};
+const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-indigo-500/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} />))}</div></div>);};
+const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo }) => { const [isExpanded, setIsExpanded] = useState(false); const cardRef = useRef(null); const toggleExpand = () => { if (!window.Flip) return; const state = window.Flip.getState(cardRef.current); setIsExpanded(!isExpanded); window.Flip.from(state, { duration: 0.3, ease: "power1.inOut" }); }; const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending']; const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none'; const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort(); return (<div ref={cardRef} className={`bg-white/5 border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-white/10'}`}><div className="p-4 cursor-pointer" onClick={toggleExpand}><div className="flex justify-between items-center gap-4"><div className="flex items-center flex-1 min-w-0">{deadlineStatus !== 'none' && task.status !== 'Done' && (<AlertTriangleIcon className={`w-5 h-5 mr-3 shrink-0 ${deadlineStatus === 'overdue' ? 'text-red-500' : 'text-yellow-500'}`} />)}<p className="text-slate-100 truncate">{task.title}</p></div><div className="flex items-center space-x-2 sm:space-x-4 shrink-0">{task.dueDate && <span className="text-xs text-slate-400 hidden sm:block">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-CA')}</span>}<span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span><div className="w-24 text-sm text-slate-400 flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div><ChevronDown className={`w-6 h-6 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} /></div></div></div>{isExpanded && (<div className="px-4 pb-4 border-t border-white/10"><div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4"><div><label className="block text-xs text-slate-400 mb-1">Status</label><select value={task.status} onChange={(e) => onUpdate(task.id, {status: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed" disabled={isDemo}>{Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}</select></div><MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} /><div><label className="block text-xs text-slate-400 mb-1">Due Date</label><input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed" disabled={isDemo} /></div></div><CommentSection db={db} appId={appId} projectId={projectId} taskId={taskId} currentUser={userName} logActivity={logActivity} taskTitle={task.title} isDemo={isDemo} /><div className="flex justify-end mt-4"><button onClick={() => onDelete(task.id, task.title)} className="flex items-center text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><Trash2Icon className="w-4 h-4 mr-2" /> Delete Task</button></div></div>)}</div>);};
+const AddTaskForm = ({ onAddTask, categories, team, onCancel }) => { const [title, setTitle] = useState(''); const [category, setCategory] = useState(categories[0] || 'Uncategorized'); const [owners, setOwners] = useState(team[0] ? [team[0]] : []); const [dueDate, setDueDate] = useState(''); const [newCategory, setNewCategory] = useState(''); const [newOwner, setNewOwner] = useState(''); const handleSubmit = (e) => { e.preventDefault(); if (!title.trim()) return; const finalCategory = category === '---new---' ? newCategory.trim() : category; let finalOwners = owners; if (newOwner.trim()) { finalOwners = [...finalOwners, newOwner.trim()]; } if (!finalCategory || finalOwners.length === 0) { alert("Please ensure category and owner are set."); return; } onAddTask({ title: title.trim(), category: finalCategory, owner: finalOwners, dueDate, status: 'Pending' }); onCancel(); }; return (<div className="bg-slate-800/80 border border-indigo-500/50 rounded-lg p-6 mb-8 backdrop-blur-sm"><h3 className="text-lg font-bold text-white mb-4">Add New Task</h3><form onSubmit={handleSubmit}><div className="mb-4"><label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">Task Title</label><input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Category / Section</label><select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)} <option value="---new---">-- Add New Category --</option></select>{category === '---new---' && (<input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500" />)}</div><MultiSelectOwner owners={owners} allOwners={[...team, newOwner.trim()].filter(Boolean)} onUpdate={setOwners} isNewTask={true} newOwner={newOwner} setNewOwner={setNewOwner} /><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Date</label><input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"/></div></div><div className="flex justify-end gap-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500">Add Task</button></div></form></div>);};
+const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity, taskTitle, isDemo }) => {
+    const [comments, setComments] = useState([]);
+    const [newComment, setNewComment] = useState('');
+    useEffect(() => {
+        if (isDemo) {
+            setComments([
+                { id: 1, text: 'This is a comment on a task in the demo project.', author: 'Alice', timestamp: { toDate: () => new Date() } },
+            ]);
+            return;
+        }
+        if (!db || !taskId || !projectId) return;
+        const commentsQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments'), orderBy('timestamp', 'asc'));
+        const unsubscribe = onSnapshot(commentsQuery, (snapshot) => { setComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
+        return () => unsubscribe();
+    }, [db, appId, projectId, taskId, isDemo]);
+
+    const handleAddComment = async (e) => {
+        e.preventDefault();
+        const trimmedComment = newComment.trim();
+        if (isDemo || !trimmedComment || !db) return;
+        const commentsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments');
+        await addDoc(commentsCollectionRef, { text: trimmedComment, author: currentUser || 'Guest', timestamp: serverTimestamp() });
+        if (logActivity) {
+            logActivity(`${currentUser || 'Guest'} commented on '${taskTitle}': "${trimmedComment}"`);
+        }
+        setNewComment('');
+    };
+
+    return (
+        <div className="pt-4 mt-4 border-t border-white/10">
+            <h4 className="text-sm font-semibold text-slate-300 mb-2">Comments</h4>
+            <div className="space-y-3 mb-4 max-h-48 overflow-y-auto pr-2">
+                {comments.map(comment => (
+                    <div key={comment.id} className="text-sm bg-slate-800/50 p-2 rounded-md">
+                        <p className="text-slate-200 whitespace-pre-wrap">{comment.text}</p>
+                        <p className="text-xs text-slate-400 mt-1"><strong>{comment.author}</strong> - {formatTimestamp(comment.timestamp)}</p>
+                    </div>
+                ))}
+            </div>
+            <form onSubmit={handleAddComment} className="flex gap-2">
+                <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder={isDemo ? "Commenting is disabled in demo mode" : "Add a comment..."} className="flex-1 bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed" disabled={isDemo || !currentUser} />
+                <button type="submit" className="px-4 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo || !newComment.trim() || !currentUser}>Send</button>
+            </form>
+        </div>
+    );
+};
+const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, setNewOwner, isDemo }) => { const [isOpen, setIsOpen] = useState(false); const wrapperRef = useRef(null); useEffect(() => { function handleClickOutside(event) { if (wrapperRef.current && !wrapperRef.current.contains(event.target)) { setIsOpen(false); } } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [wrapperRef]); const handleOwnerChange = (owner, checked) => { const newOwners = checked ? [...owners, owner] : owners.filter(o => o !== owner); onUpdate(newOwners); }; return (<div><label className="block text-xs text-slate-400 mb-1">Owner(s)</label><div ref={wrapperRef} className="relative"><button type="button" onClick={() => !isDemo && setIsOpen(!isOpen)} className="w-full bg-slate-800 border border-slate-700 rounded-md p-2 text-sm text-white text-left flex justify-between items-center disabled:cursor-not-allowed" disabled={isDemo}>
+  <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+  {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-slate-700 cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+    <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-slate-700 border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-indigo-500"/></div>)}</div>)}</div></div>);};
