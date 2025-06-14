@@ -845,7 +845,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     }
 
     if (!project) {
-        return <div className="min-h-screen bg-brand-dark flex flex-col justify-center items-center text-white"><h1 className="text-4xl font-bold mb-4">Project Not Found</h1><p className="text-slate-400 mb-8">The project you are looking for does not exist or has been deleted.</p><button onClick={() => navigate('home')} className="px-6 py-2 bg-brand-primary rounded-lg hover:opacity-90">Go Home</button></div>
+        return <div className="min-h-screen bg-brand-dark flex flex-col justify-center items-center text-white"><h1 className="text-4xl font-bold mb-4">Project Not Found</h1><p className="text-brand-light mb-8">The project you are looking for does not exist or has been deleted.</p><button onClick={() => navigate('home')} className="px-6 py-2 bg-brand-primary rounded-lg hover:opacity-90">Go Home</button></div>
     }
 
     return (
@@ -889,14 +889,14 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                                         onChange={(e) => setProjectName(e.target.value)}
                                         onBlur={handleSaveName}
                                         onKeyDown={handleNameKeydown}
-                                        className="text-4xl font-poppins font-bold bg-transparent text-brand-light tracking-tight focus:outline-none focus:bg-slate-800/50 rounded-md"
+                                        className="text-4xl font-poppins font-bold bg-transparent text-brand-light tracking-tight focus:outline-none focus:bg-brand-surface rounded-md"
                                         style={{ width: `${projectName.length + 2}ch`}} // Dynamically size input
                                         autoFocus
                                         disabled={isDemo}
                                     />
                                 ) : (
                                     <span
-                                        className={`text-brand-light ${!isDemo && 'cursor-pointer hover:underline'}`}
+                                        className={`text-brand-primary ${!isDemo && 'cursor-pointer hover:underline'}`}
                                         onClick={() => { if (!isDemo) requireName(() => setIsEditingName(true)) }}
                                     >
                                         {project.name}
@@ -908,9 +908,9 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         <div className="text-right">
                             {project.code &&
                                 <div className="flex items-center gap-2 justify-end mb-2">
-                                    <span className="text-sm text-slate-400">Project Code: <span className="font-mono text-brand-light">{project.code}</span></span>
+                                    <span className="text-sm text-brand-light">Project Code: <span className="font-mono text-brand-primary">{project.code}</span></span>
                                     {!isDemo &&
-                                        <button onClick={handleShareProject} className="p-1.5 bg-slate-700/50 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors" title="Copy Share Link">
+                                        <button onClick={handleShareProject} className="p-1.5 bg-brand-surface rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors" title="Copy Share Link">
                                             <ShareIcon className="w-4 h-4" />
                                         </button>
                                     }
@@ -924,20 +924,20 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                                     onChange={(e) => setProjectDeadline(e.target.value)}
                                     onBlur={handleSaveDeadline}
                                     onKeyDown={handleDeadlineKeydown}
-                                    className="bg-slate-700 text-white rounded-md p-1"
+                                    className="bg-brand-surface text-white rounded-md p-1"
                                     autoFocus
                                     disabled={isDemo}
                                  />
                             ) : (
-                                <div className={`${!isDemo && 'cursor-pointer'} hover:bg-slate-800/50 p-1 rounded-md`} onClick={() => { if (!isDemo) requireName(() => setIsEditingDeadline(true)) } }>
-                                    <div className="text-sm text-slate-400">Project Deadline</div>
+                                <div className={`${!isDemo && 'cursor-pointer'} hover:bg-brand-surface p-1 rounded-md`} onClick={() => { if (!isDemo) requireName(() => setIsEditingDeadline(true)) } }>
+                                    <div className="text-sm text-brand-light">Project Deadline</div>
                                     {project.deadline ? (
                                         <>
                                             <div className="text-2xl font-bold text-white">{new Date(project.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
                                             <div className={`text-sm font-semibold ${daysRemaining < 0 ? 'text-red-400' : 'text-slate-300'}`}>{daysRemaining >= 0 ? `${daysRemaining} days remaining` : `${Math.abs(daysRemaining)} days overdue`}</div>
                                         </>
                                     ) : (
-                                        <div className="text-lg text-slate-400">Set Deadline</div>
+                                        <div className="text-lg text-brand-light">Set Deadline</div>
                                     )}
                                 </div>
                             )}
@@ -952,7 +952,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 </header>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                     <div className="md:col-span-2 p-4 bg-brand-surface rounded-lg border border-slate-700">
-                        <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-brand-light font-semibold">{progress}%</span></div>
+                        <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-brand-primary font-semibold">{progress}%</span></div>
                         <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-brand-primary h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div>
                     </div>
                     <div className="p-4 bg-brand-surface rounded-lg border border-slate-700 flex items-center"><label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label><select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"><option value="All">All Owners</option>{dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}</select></div>
@@ -1170,4 +1170,3 @@ const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, se
   <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-brand-surface border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
   {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
     <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-brand-dark border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-brand-primary"/></div>)}</div>)}</div></div>);};
-
