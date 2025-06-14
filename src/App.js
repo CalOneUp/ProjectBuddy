@@ -429,7 +429,7 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
             <header className="text-center mb-12">
                 <img src="/mt-logo.png" alt="Meet & Tackle Logo" className="mx-auto mb-4 max-w-sm" />
-                <p className="text-indigo-300 text-lg mt-4">Turn your planning meetings into projects.</p>
+                <p className="text-indigo-300 text-lg mt-4">Hook into your action items. The best AI tool to tackle your meeting notes.</p>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:items-start">
