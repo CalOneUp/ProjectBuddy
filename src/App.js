@@ -71,14 +71,13 @@ const useToast = () => React.useContext(ToastContext);
 const ToastProvider = ({ children }) => {
     const [toasts, setToasts] = useState([]);
     
-    // FIX: Wrap addToast in useCallback to ensure it has a stable reference, preventing re-render loops.
     const addToast = useCallback((message) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, message }]);
         setTimeout(() => {
             setToasts(prev => prev.filter(toast => toast.id !== id));
         }, 5000);
-    }, []); // Empty dependency array ensures the function is created only once.
+    }, []);
 
     return (
         <ToastContext.Provider value={{ addToast }}>
@@ -960,9 +959,9 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 </div>
                  {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
                 <div className="mb-8 flex gap-4">
-                    <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
-                    <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
-                    <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
+                    <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
+                    <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         {isGeneratingUpdate ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <MessageSquareIcon className="w-5 h-5" /> }
                         Generate Slack Update
                     </button>
@@ -1171,4 +1170,3 @@ const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, se
   <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
   {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-slate-700 cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
     <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-slate-700 border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-brand-primary"/></div>)}</div>)}</div></div>);};
-
