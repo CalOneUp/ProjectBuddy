@@ -428,10 +428,7 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
     return (
         <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
             <header className="text-center mb-12">
-                <div className="flex justify-center items-center gap-4">
-                    <img src="/mascot-worm.png" alt="Meet & Tackle Mascot" className="w-32 h-32" />
-                    <h1 className="text-5xl font-poppins font-bold text-white tracking-tight">Meet & Tackle</h1>
-                </div>
+                <img src="/mt-logo.png" alt="Meet & Tackle Logo" className="mx-auto mb-4" />
                 <p className="text-indigo-300 text-lg mt-4">Turn your planning meetings into projects.</p>
             </header>
 
