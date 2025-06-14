@@ -491,7 +491,7 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
             <div className="my-24 py-16 bg-slate-800/50 rounded-2xl">
                 <div className="max-w-5xl mx-auto px-6 text-center">
                     <h2 className="text-3xl font-bold text-white mb-4">Stop Drowning in Meeting Notes. Start Tackling Your Projects.</h2>
-                    <p className="text-indigo-300 mb-12 max-w-2xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
+                    <p className="text-indigo-300 mb-12 max-w-3xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
                             <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
@@ -850,131 +850,143 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     }
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-            <UserPromptModal
-                isOpen={showNamePrompt}
-                onSubmit={(name) => {
-                    setUserName(name);
-                    localStorage.setItem('meetandtackle_userName', name);
-                    if(actionToRun) {
-                        actionToRun(name);
-                    }
-                    setShowNamePrompt(false);
-                    setActionToRun(null);
-                }}
-                onCancel={() => setShowNamePrompt(false)}
-            />
-            <SlackUpdateModal isOpen={!!slackUpdate} onClose={() => setSlackUpdate(null)} updateText={slackUpdate} />
-            {notification && (
-                <div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center">
-                    <span>{notification}</span>
-                    <button onClick={() => setNotification(null)} className="font-bold text-xl ml-4">&times;</button>
-                </div>
-            )}
-            <header className="mb-8">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-4xl font-poppins font-bold text-white tracking-tight mb-2">
-                            <span
-                                onClick={() => navigate('home')}
-                                className="cursor-pointer hover:text-indigo-300 transition-colors duration-200"
-                            >
-                                Meet & Tackle
-                            </span>
-                            <span className="text-slate-500 mx-2">/</span>
-                            {isEditingName ? (
-                                <input
-                                    type="text"
-                                    value={projectName}
-                                    onChange={(e) => setProjectName(e.target.value)}
-                                    onBlur={handleSaveName}
-                                    onKeyDown={handleNameKeydown}
-                                    className="text-4xl font-poppins font-bold bg-transparent text-indigo-400 tracking-tight focus:outline-none focus:bg-slate-800/50 rounded-md"
-                                    style={{ width: `${projectName.length + 2}ch`}} // Dynamically size input
+        <>
+            <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+                <UserPromptModal
+                    isOpen={showNamePrompt}
+                    onSubmit={(name) => {
+                        setUserName(name);
+                        localStorage.setItem('meetandtackle_userName', name);
+                        if(actionToRun) {
+                            actionToRun(name);
+                        }
+                        setShowNamePrompt(false);
+                        setActionToRun(null);
+                    }}
+                    onCancel={() => setShowNamePrompt(false)}
+                />
+                <SlackUpdateModal isOpen={!!slackUpdate} onClose={() => setSlackUpdate(null)} updateText={slackUpdate} />
+                {notification && (
+                    <div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center">
+                        <span>{notification}</span>
+                        <button onClick={() => setNotification(null)} className="font-bold text-xl ml-4">&times;</button>
+                    </div>
+                )}
+                <header className="mb-8">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h1 className="text-4xl font-poppins font-bold text-white tracking-tight mb-2">
+                                <span
+                                    onClick={() => navigate('home')}
+                                    className="cursor-pointer hover:text-indigo-300 transition-colors duration-200"
+                                >
+                                    Meet & Tackle
+                                </span>
+                                <span className="text-slate-500 mx-2">/</span>
+                                {isEditingName ? (
+                                    <input
+                                        type="text"
+                                        value={projectName}
+                                        onChange={(e) => setProjectName(e.target.value)}
+                                        onBlur={handleSaveName}
+                                        onKeyDown={handleNameKeydown}
+                                        className="text-4xl font-poppins font-bold bg-transparent text-indigo-400 tracking-tight focus:outline-none focus:bg-slate-800/50 rounded-md"
+                                        style={{ width: `${projectName.length + 2}ch`}} // Dynamically size input
+                                        autoFocus
+                                        disabled={isDemo}
+                                    />
+                                ) : (
+                                    <span
+                                        className={`text-indigo-400 ${!isDemo && 'cursor-pointer hover:underline'}`}
+                                        onClick={() => { if (!isDemo) requireName(() => setIsEditingName(true)) }}
+                                    >
+                                        {project.name}
+                                    </span>
+                                )}
+                            </h1>
+                            <p className="text-indigo-300 mt-2">A real-time dashboard to track project progress.</p>
+                        </div>
+                        <div className="text-right">
+                            {project.code &&
+                                <div className="flex items-center gap-2 justify-end mb-2">
+                                    <span className="text-sm text-slate-400">Project Code: <span className="font-mono text-indigo-300">{project.code}</span></span>
+                                    {!isDemo &&
+                                        <button onClick={handleShareProject} className="p-1.5 bg-slate-700/50 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors" title="Copy Share Link">
+                                            <ShareIcon className="w-4 h-4" />
+                                        </button>
+                                    }
+                                    {copyFeedback && <span className="text-xs text-green-400">{copyFeedback}</span>}
+                                </div>
+                            }
+                            {isEditingDeadline ? (
+                                 <input
+                                    type="date"
+                                    value={projectDeadline}
+                                    onChange={(e) => setProjectDeadline(e.target.value)}
+                                    onBlur={handleSaveDeadline}
+                                    onKeyDown={handleDeadlineKeydown}
+                                    className="bg-slate-700 text-white rounded-md p-1"
                                     autoFocus
                                     disabled={isDemo}
-                                />
+                                 />
                             ) : (
-                                <span
-                                    className={`text-indigo-400 ${!isDemo && 'cursor-pointer hover:underline'}`}
-                                    onClick={() => { if (!isDemo) requireName(() => setIsEditingName(true)) }}
-                                >
-                                    {project.name}
-                                </span>
+                                <div className={`${!isDemo && 'cursor-pointer'} hover:bg-slate-800/50 p-1 rounded-md`} onClick={() => { if (!isDemo) requireName(() => setIsEditingDeadline(true)) } }>
+                                    <div className="text-sm text-slate-400">Project Deadline</div>
+                                    {project.deadline ? (
+                                        <>
+                                            <div className="text-2xl font-bold text-white">{new Date(project.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                                            <div className={`text-sm font-semibold ${daysRemaining < 0 ? 'text-red-400' : 'text-slate-300'}`}>{daysRemaining >= 0 ? `${daysRemaining} days remaining` : `${Math.abs(daysRemaining)} days overdue`}</div>
+                                        </>
+                                    ) : (
+                                        <div className="text-lg text-slate-400">Set Deadline</div>
+                                    )}
+                                </div>
                             )}
-                        </h1>
-                        <p className="text-indigo-300 mt-2">A real-time dashboard to track project progress.</p>
+                        </div>
                     </div>
-                    <div className="text-right">
-                        {project.code &&
-                            <div className="flex items-center gap-2 justify-end mb-2">
-                                <span className="text-sm text-slate-400">Project Code: <span className="font-mono text-indigo-300">{project.code}</span></span>
-                                {!isDemo &&
-                                    <button onClick={handleShareProject} className="p-1.5 bg-slate-700/50 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors" title="Copy Share Link">
-                                        <ShareIcon className="w-4 h-4" />
-                                    </button>
-                                }
-                                {copyFeedback && <span className="text-xs text-green-400">{copyFeedback}</span>}
-                            </div>
-                        }
-                        {isEditingDeadline ? (
-                             <input
-                                type="date"
-                                value={projectDeadline}
-                                onChange={(e) => setProjectDeadline(e.target.value)}
-                                onBlur={handleSaveDeadline}
-                                onKeyDown={handleDeadlineKeydown}
-                                className="bg-slate-700 text-white rounded-md p-1"
-                                autoFocus
-                                disabled={isDemo}
-                             />
-                        ) : (
-                            <div className={`${!isDemo && 'cursor-pointer'} hover:bg-slate-800/50 p-1 rounded-md`} onClick={() => { if (!isDemo) requireName(() => setIsEditingDeadline(true)) } }>
-                                <div className="text-sm text-slate-400">Project Deadline</div>
-                                {project.deadline ? (
-                                    <>
-                                        <div className="text-2xl font-bold text-white">{new Date(project.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
-                                        <div className={`text-sm font-semibold ${daysRemaining < 0 ? 'text-red-400' : 'text-slate-300'}`}>{daysRemaining >= 0 ? `${daysRemaining} days remaining` : `${Math.abs(daysRemaining)} days overdue`}</div>
-                                    </>
-                                ) : (
-                                    <div className="text-lg text-slate-400">Set Deadline</div>
-                                )}
-                            </div>
-                        )}
+                    {isDemo &&
+                        <div className="mt-4 p-3 bg-yellow-400/10 border border-yellow-400/30 text-yellow-300 rounded-lg text-sm flex items-center gap-3">
+                            <EyeIcon className="w-5 h-5"/>
+                            You are viewing a read-only demo project. To create your own, please go back to the homepage.
+                        </div>
+                    }
+                </header>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="md:col-span-2 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                        <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-indigo-300 font-semibold">{progress}%</span></div>
+                        <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-indigo-500 h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div>
                     </div>
+                    <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 flex items-center"><label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label><select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"><option value="All">All Owners</option>{dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}</select></div>
                 </div>
-                {isDemo &&
-                    <div className="mt-4 p-3 bg-yellow-400/10 border border-yellow-400/30 text-yellow-300 rounded-lg text-sm flex items-center gap-3">
-                        <EyeIcon className="w-5 h-5"/>
-                        You are viewing a read-only demo project. To create your own, please go back to the homepage.
-                    </div>
-                }
-            </header>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="md:col-span-2 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                    <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-indigo-300 font-semibold">{progress}%</span></div>
-                    <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-indigo-500 h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div>
+                 {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
+                <div className="mb-8 flex gap-4">
+                    <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
+                    <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
+                    <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isGeneratingUpdate ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <MessageSquareIcon className="w-5 h-5" /> }
+                        Generate Slack Update
+                    </button>
                 </div>
-                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 flex items-center"><label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label><select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-indigo-500"><option value="All">All Owners</option>{dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}</select></div>
+                {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} team={dynamicTeam} onCancel={() => setShowAddTaskForm(false)} />}
+                {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
+                {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={appId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} />))}</div>
+                        <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
+                    </div>
+                )}
             </div>
-             {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
-            <div className="mb-8 flex gap-4">
-                <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
-                <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
-                <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-200 bg-indigo-500/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isGeneratingUpdate ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <MessageSquareIcon className="w-5 h-5" /> }
-                    Generate Slack Update
-                </button>
-            </div>
-            {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} team={dynamicTeam} onCancel={() => setShowAddTaskForm(false)} />}
-            {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
-            {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={appId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} />))}</div>
-                    <div className="lg:col-span-1"><ActivityLog db={db} appId={appId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
-                </div>
+            {!isDemo && (
+                <footer className="mt-24 py-12 bg-slate-800/50 rounded-2xl">
+                    <div className="max-w-4xl mx-auto px-6 text-center">
+                         <img src="/mt-logo.png" alt="Meet & Tackle Logo" className="mx-auto mb-6 h-16" />
+                        <h2 className="text-3xl font-bold text-white mb-4">Turn Your Own Meetings into Actionable Plans</h2>
+                        <p className="text-indigo-300 mb-8 max-w-2xl mx-auto">Stop letting action items get lost in the shuffle. Click below to use our AI-powered tool for your own projects, absolutely free.</p>
+                        <button onClick={() => navigate('home')} className="px-8 py-4 text-lg font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors">Create Your Free Project Plan</button>
+                    </div>
+                </footer>
             )}
-        </div>
+        </>
     );
 };
 
@@ -1159,3 +1171,4 @@ const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, se
   <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
   {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-slate-700 cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
     <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-slate-700 border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-indigo-500"/></div>)}</div>)}</div></div>);};
+
