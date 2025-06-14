@@ -490,8 +490,8 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
 
             <div className="my-24 py-16 bg-slate-800/50 rounded-2xl">
                 <div className="max-w-5xl mx-auto px-6 text-center">
-                    <h2 className="text-3xl font-bold text-white mb-4">Never Let an Action Item Slip Through the Cracks Again</h2>
-                    <p className="text-indigo-300 mb-12 max-w-2xl mx-auto">Meet & Tackle is more than just an AI meeting summary tool. It's an intelligent project manager that lives in your browser, helping you and your team stay aligned and productive.</p>
+                    <h2 className="text-3xl font-bold text-white mb-4">Stop Drowning in Meeting Notes. Start Tackling Your Projects.</h2>
+                    <p className="text-indigo-300 mb-12 max-w-2xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
                             <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-indigo-400"/>
@@ -1159,4 +1159,3 @@ const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, se
   <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
   {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-slate-700 cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
     <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-slate-700 border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-indigo-500"/></div>)}</div>)}</div></div>);};
-
