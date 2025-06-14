@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc } from 'firebase/firestore';
 
 // --- Helper Components & Icons ---
 const ChevronDown = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m6 9 6 6 6-6" /></svg>);
@@ -577,37 +577,63 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         if (!db || !projectId) return;
         setIsLoading(true);
 
-        const projectRef = doc(db, 'artifacts', appId, 'public', 'data', 'projects', projectId);
-        const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks');
+        const fetchAndSubscribe = async () => {
+            const currentAppId = appId;
+            const oldAppId = 'project-buddy-app';
+            let finalProjectRef;
+            let finalAppId = currentAppId;
 
-        const unsubProject = onSnapshot(projectRef, docSnap => {
-            if (docSnap.exists()) {
-                const projectData = { id: docSnap.id, ...docSnap.data() };
-                setProject(projectData);
-                setProjectName(projectData.name);
-                setProjectDeadline(projectData.deadline || '');
-                recentProjectsManager.add({ id: projectData.id, name: projectData.name });
-                updateMetaTags(`Project: ${projectData.name}`, `View the project plan for ${projectData.name} on Meet & Tackle.`);
+            // Check current appId first
+            const currentProjectRef = doc(db, 'artifacts', currentAppId, 'public', 'data', 'projects', projectId);
+            const currentDocSnap = await getDoc(currentProjectRef);
+
+            if (currentDocSnap.exists()) {
+                finalProjectRef = currentProjectRef;
             } else {
-                console.error("Project not found!");
+                // If not found, check old appId
+                const oldProjectRef = doc(db, 'artifacts', oldAppId, 'public', 'data', 'projects', projectId);
+                const oldDocSnap = await getDoc(oldProjectRef);
+                if (oldDocSnap.exists()) {
+                    finalProjectRef = oldProjectRef;
+                    finalAppId = oldAppId; // Set the correct appId for task fetching
+                }
+            }
+
+            if (finalProjectRef) {
+                const unsubProject = onSnapshot(finalProjectRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const projectData = { id: docSnap.id, ...docSnap.data() };
+                        setProject(projectData);
+                        setProjectName(projectData.name);
+                        setProjectDeadline(projectData.deadline || '');
+                        recentProjectsManager.add({ id: projectData.id, name: projectData.name });
+                        updateMetaTags(`Project: ${projectData.name}`, `View the project plan for ${projectData.name} on Meet & Tackle.`);
+                    }
+                });
+
+                const tasksCollectionRef = collection(db, 'artifacts', finalAppId, 'public', 'data', 'projects', projectId, 'tasks');
+                const unsubTasks = onSnapshot(tasksCollectionRef, (snapshot) => {
+                    const statusOrder = { 'In Progress': 1, 'Pending': 2, 'Done': 3 };
+                    const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    fetchedTasks.sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
+                    setTasks(fetchedTasks);
+                    setIsLoading(false);
+                });
+
+                return () => {
+                    unsubProject();
+                    unsubTasks();
+                    resetMetaTags();
+                };
+            } else {
+                console.error("Project not found in any location!");
                 setProject(null);
+                setIsLoading(false);
                 resetMetaTags();
             }
-        });
-
-        const unsubTasks = onSnapshot(tasksCollectionRef, snapshot => {
-            const statusOrder = { 'In Progress': 1, 'Pending': 2, 'Done': 3 };
-            const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            fetchedTasks.sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
-            setTasks(fetchedTasks);
-            setIsLoading(false);
-        });
-
-        return () => {
-            unsubProject();
-            unsubTasks();
-            resetMetaTags();
         };
+
+        fetchAndSubscribe();
     }, [db, appId, projectId, isDemo]);
 
     const handleProjectUpdate = (updates, actor) => {
