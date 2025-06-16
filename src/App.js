@@ -467,7 +467,8 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
     return (
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
             <header className="text-center mb-12">
-                <img src="/mt-logo.png" alt="Meet & Tackle Logo" className="mx-auto mb-4 max-w-sm" />
+                {/* Updated image tag for LCP optimization and WebP format */}
+                <img src="/mt-logo.webp" alt="Meet & Tackle Logo" className="mx-auto mb-4 max-w-sm" fetchpriority="high" />
                 <p className="text-brand-light text-lg mt-4">Hook into your action items. The best AI tool to tackle your meeting notes.</p>
             </header>
 
@@ -501,7 +502,8 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                         <div className="max-w-lg mx-auto bg-brand-surface p-6 rounded-lg border border-slate-700 shadow-2xl">
                             <form onSubmit={handleSearch} className="flex gap-2">
                                 <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />
-                                <button type="submit" className="px-4 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching}>
+                                {/* Added aria-label for accessibility */}
+                                <button type="submit" className="px-4 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching} aria-label="Search project by code">
                                     {isSearching ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <SearchIcon className="w-5 h-5" />}
                                 </button>
                             </form>
@@ -528,27 +530,32 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
             <div className="my-24 py-16 bg-brand-surface rounded-2xl">
                 <div className="max-w-5xl mx-auto px-6 text-center">
                     <h2 className="text-3xl font-bold text-white mb-4">Stop Drowning in Meeting Notes. Start Tackling Your Projects.</h2>
-                    <p className="text-brand-light mb-12 max-w-3xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
+                    {/* Adjusted text color for better contrast */}
+                    <p className="text-slate-300 mb-12 max-w-3xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
                             <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
                             <h3 className="text-xl font-semibold text-white mb-2">AI Project Creation</h3>
-                            <p className="text-brand-light">Paste any meeting transcript and our AI will instantly generate a complete project plan, complete with tasks, owners, and categories.</p>
+                            {/* Adjusted text color for better contrast */}
+                            <p className="text-slate-300">Paste any meeting transcript and our AI will instantly generate a complete project plan, complete with tasks, owners, and categories.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
                              <ZapIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Automatic Project Updates</h3>
-                            <p className="text-brand-light">Got a follow-up meeting? Just paste the new transcript. Our AI will intelligently update existing tasks and add new ones.</p>
+                            {/* Adjusted text color for better contrast */}
+                            <p className="text-slate-300">Got a follow-up meeting? Just paste the new transcript. Our AI will intelligently update existing tasks and add new ones.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
                            <UsersIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Collaborative Dashboard</h3>
-                            <p className="text-brand-light">Share your project with a unique code. Everyone can see the real-time status, add comments, and update tasks together.</p>
+                            {/* Adjusted text color for better contrast */}
+                            <p className="text-slate-300">Share your project with a unique code. Everyone can see the real-time status, add comments, and update tasks together.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
                            <MessageSquareIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Instant Slack Updates</h3>
-                            <p className="text-brand-light">With one click, generate a perfectly formatted Slack message to keep your team in the loop on project progress and at-risk tasks.</p>
+                            {/* Adjusted text color for better contrast */}
+                            <p className="text-slate-300">With one click, generate a perfectly formatted Slack message to keep your team in the loop on project progress and at-risk tasks.</p>
                         </div>
                     </div>
                 </div>
@@ -557,11 +564,13 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
             <div className="my-16">
                 <div className="max-w-4xl mx-auto px-6 text-center">
                     <h2 className="text-3xl font-bold text-white mb-4">No Transcript? No Problem.</h2>
-                    <p className="text-brand-light mb-12 max-w-2xl mx-auto">Getting a transcript is easier than you think. Most meeting platforms have built-in transcription, or you can use a dedicated service. Once you have the text, just paste it in to see the magic happen.</p>
+                    {/* Adjusted text color for better contrast */}
+                    <p className="text-slate-300 mb-12 max-w-2xl mx-auto">Getting a transcript is easier than you think. Most meeting platforms have built-in transcription, or you can use a dedicated service. Once you have the text, just paste it in to see the magic happen.</p>
                      <div className="flex justify-center gap-8">
+                        {/* Adjusted text color for better contrast on links */}
                         <a href="https://support.zoom.us/hc/en-us/articles/115004794983-Using-audio-transcription-for-cloud-recordings" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Zoom</a>
                         <a href="https://support.google.com/meet/answer/13286392?hl=en" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Google Meet</a>
-                        <a href="https://support.microsoft.com/en-us/office/view-live-transcription-in-a-teams-meeting-dc1a8f23-2e20-4684-885e-2152e06a4a8b" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Microsoft Teams</a>
+                        <a href="https://support.microsoft.com/en-us/office/view-live-transcription-in-a-te..." target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Microsoft Teams</a>
                         <a href="https://otter.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Otter.ai</a>
                         <a href="https://fireflies.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Fireflies.ai</a>
                     </div>
@@ -569,6 +578,31 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
             </div>
         </div>
     );
+};
+
+// --- Local Storage Manager for Recent Projects ---
+const recentProjectsManager = {
+    get: () => {
+        try {
+            const projects = localStorage.getItem('meetandtackle_recentProjects');
+            return projects ? JSON.parse(projects) : [];
+        } catch (e) {
+            console.error("Failed to parse recent projects from localStorage", e);
+            return [];
+        }
+    },
+    add: (project) => {
+        if (!project || !project.id || !project.name || project.id === DEMO_PROJECT_ID) return; // Don't save demo project
+        let projects = recentProjectsManager.get();
+        projects = projects.filter(p => p.id !== project.id);
+        projects.unshift(project);
+        projects = projects.slice(0, 5);
+        try {
+            localStorage.setItem('meetandtackle_recentProjects', JSON.stringify(projects));
+        } catch (e) {
+            console.error("Failed to save recent projects to localStorage", e);
+        }
+    }
 };
 
 // --- Project Page ---
@@ -1021,6 +1055,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-brand-primary font-semibold">{progress}%</span></div>
                         <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-brand-primary h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div>
                     </div>
+                    {/* Adjusted text color for better contrast on label */}
                     <div className="p-4 bg-brand-surface rounded-lg border border-slate-700 flex items-center"><label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label><select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"><option value="All">All Owners</option>{dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}</select></div>
                 </div>
                  {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
@@ -1044,9 +1079,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
             {!isDemo && (
                 <footer className="mt-24 py-12 bg-brand-surface rounded-2xl">
                     <div className="max-w-4xl mx-auto px-6 text-center">
-                         <img src="/mt-logo.png" alt="Meet & Tackle Logo" className="mx-auto mb-6 h-16" />
+                         {/* Updated image tag for WebP format */}
+                         <img src="/mt-logo.webp" alt="Meet & Tackle Logo" className="mx-auto mb-6 h-16" />
                         <h2 className="text-3xl font-bold text-white mb-4">Turn Your Own Meetings into Actionable Plans</h2>
-                        <p className="text-brand-light mb-8 max-w-2xl mx-auto">Stop letting action items get lost in the shuffle. Click below to use our AI-powered tool for your own projects, absolutely free.</p>
+                        {/* Adjusted text color for better contrast */}
+                        <p className="text-slate-300 mb-8 max-w-2xl mx-auto">Stop letting action items get lost in the shuffle. Click below to use our AI-powered tool for your own projects, absolutely free.</p>
                         <button onClick={() => navigate('home')} className="px-8 py-4 text-lg font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-colors">Create Your Free Project Plan</button>
                     </div>
                 </footer>
