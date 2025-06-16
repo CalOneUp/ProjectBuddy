@@ -22,6 +22,31 @@ const UsersIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24"
 const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
 const DEMO_PROJECT_ID = 'demo-project-123';
 
+// --- Local Storage Manager for Recent Projects (Moved to a clearer, single declaration spot) ---
+const recentProjectsManager = {
+    get: () => {
+        try {
+            const projects = localStorage.getItem('meetandtackle_recentProjects');
+            return projects ? JSON.parse(projects) : [];
+        } catch (e) {
+            console.error("Failed to parse recent projects from localStorage", e);
+            return [];
+        }
+    },
+    add: (project) => {
+        if (!project || !project.id || !project.name || project.id === DEMO_PROJECT_ID) return; // Don't save demo project
+        let projects = recentProjectsManager.get();
+        projects = projects.filter(p => p.id !== project.id);
+        projects.unshift(project);
+        projects = projects.slice(0, 5);
+        try {
+            localStorage.setItem('meetandtackle_recentProjects', JSON.stringify(projects));
+        } catch (e) {
+            console.error("Failed to save recent projects to localStorage", e);
+        }
+    }
+};
+
 // --- Utility Functions ---
 const getDeadlineStatus = (dueDate) => {
     if (!dueDate) return 'none';
@@ -214,30 +239,6 @@ export default function App() {
     );
 }
 
-// --- Local Storage Manager for Recent Projects ---
-const recentProjectsManager = {
-    get: () => {
-        try {
-            const projects = localStorage.getItem('meetandtackle_recentProjects');
-            return projects ? JSON.parse(projects) : [];
-        } catch (e) {
-            console.error("Failed to parse recent projects from localStorage", e);
-            return [];
-        }
-    },
-    add: (project) => {
-        if (!project || !project.id || !project.name || project.id === DEMO_PROJECT_ID) return; // Don't save demo project
-        let projects = recentProjectsManager.get();
-        projects = projects.filter(p => p.id !== project.id);
-        projects.unshift(project);
-        projects = projects.slice(0, 5);
-        try {
-            localStorage.setItem('meetandtackle_recentProjects', JSON.stringify(projects));
-        } catch (e) {
-            console.error("Failed to save recent projects to localStorage", e);
-        }
-    }
-};
 
 // --- Home Page ---
 const HomePage = ({ db, appId, navigate, setNotification }) => {
@@ -436,10 +437,8 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
         const searchTerm = searchQuery.trim().toLowerCase();
     
         const oldProjectsRef = collection(db, 'artifacts', oldAppId, 'public', 'data', 'projects');
-        const currentProjectsRef = collection(db, 'artifacts', currentAppId, 'public', 'data', 'projects');
-    
         const qOld = query(oldProjectsRef, where("code", "==", searchTerm));
-        const qCurrent = query(currentProjectsRef, where("code", "==", searchTerm));
+        const qCurrent = query(collection(db, 'artifacts', currentAppId, 'public', 'data', 'projects'), where("code", "==", searchTerm));
     
         try {
             const [oldSnapshot, currentSnapshot] = await Promise.all([
@@ -578,31 +577,6 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
             </div>
         </div>
     );
-};
-
-// --- Local Storage Manager for Recent Projects ---
-const recentProjectsManager = {
-    get: () => {
-        try {
-            const projects = localStorage.getItem('meetandtackle_recentProjects');
-            return projects ? JSON.parse(projects) : [];
-        } catch (e) {
-            console.error("Failed to parse recent projects from localStorage", e);
-            return [];
-        }
-    },
-    add: (project) => {
-        if (!project || !project.id || !project.name || project.id === DEMO_PROJECT_ID) return; // Don't save demo project
-        let projects = recentProjectsManager.get();
-        projects = projects.filter(p => p.id !== project.id);
-        projects.unshift(project);
-        projects = projects.slice(0, 5);
-        try {
-            localStorage.setItem('meetandtackle_recentProjects', JSON.stringify(projects));
-        } catch (e) {
-            console.error("Failed to save recent projects to localStorage", e);
-        }
-    }
 };
 
 // --- Project Page ---
@@ -1192,7 +1166,7 @@ const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
     useEffect(() => {
         if (isDemo) {
             setActivities([
-                { id: 1, log: '✨ Meet & Tackle AI created this demo project.', timestamp: { toDate: () => new Date() } },
+                { id: 1, text: '✨ Meet & Tackle AI created this demo project.', timestamp: { toDate: () => new Date() } },
             ]);
             return;
         }
