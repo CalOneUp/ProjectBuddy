@@ -1388,7 +1388,7 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                                     return <div className="w-5 h-5 rounded-full bg-slate-600 text-[10px] text-white grid place-items-center" title="Unassigned">?</div>;
                                 }
                                 const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('');
-                                const maxVisible = 4;
+                                const maxVisible = 3;
                                 const visible = owners.slice(0, maxVisible);
                                 const remaining = owners.length - visible.length;
                                 return (
