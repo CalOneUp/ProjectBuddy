@@ -1381,17 +1381,27 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                         {!task.dueDate && task.status !== 'Done' && <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-600/50 text-slate-300">No Due Date</span>}
                         {task.dueDate && <span className="text-xs text-brand-light hidden sm:block">{new Date(task.dueDate + 'T00:00:00Z').toLocaleDateString('en-CA')}</span>}
                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span>
-                        <div className="min-w-[8rem] max-w-[14rem] text-sm text-brand-light hidden md:flex items-center gap-2 shrink-0">
-                            <UserIcon className="w-4 h-4 shrink-0" />
+                        <div className="min-w-[6rem] max-w-[10rem] hidden md:flex items-center gap-1 shrink-0" title={(task.owner || []).join(', ')}>
                             {(() => {
                                 const owners = task.owner || [];
-                                const maxVisible = 2;
+                                if (owners.length === 0) {
+                                    return <div className="w-5 h-5 rounded-full bg-slate-600 text-[10px] text-white grid place-items-center" title="Unassigned">?</div>;
+                                }
+                                const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('');
+                                const maxVisible = 4;
                                 const visible = owners.slice(0, maxVisible);
                                 const remaining = owners.length - visible.length;
-                                const display = remaining > 0 ? `${visible.join(', ')} +${remaining}` : visible.join(', ');
-                                const title = owners.join(', ');
                                 return (
-                                    <span className="truncate" title={title}>{display || 'Unassigned'}</span>
+                                    <>
+                                        {visible.map((name) => (
+                                            <div key={name} className="w-5 h-5 rounded-full bg-slate-500 text-[10px] text-white grid place-items-center border border-slate-700">
+                                                {initials(name)}
+                                            </div>
+                                        ))}
+                                        {remaining > 0 && (
+                                            <div className="w-5 h-5 rounded-full bg-slate-700 text-[10px] text-white grid place-items-center border border-slate-700">+{remaining}</div>
+                                        )}
+                                    </>
                                 );
                             })()}
                         </div>
