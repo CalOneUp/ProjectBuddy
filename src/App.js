@@ -754,6 +754,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
             logActivity(`${actor} updated the project ${field} to "${updates[field]}"`);
         } catch (e) {
             console.error("Error updating project details: ", e);
+            setNotification && setNotification('Failed to update project details. Please try again.');
         }
     };
 
@@ -790,11 +791,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     // --- FIX: Use activeAppId from state ---
     const logActivity = async (logMessage) => { if(isDemo || !db) return; const logRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, author: userName, timestamp: serverTimestamp() }); };
     // --- FIX: Use activeAppId from state ---
-    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
+    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); setNotification && setNotification('Failed to update task. Please try again.'); } });
     // --- FIX: Use activeAppId from state ---
-    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
+    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); setNotification && setNotification('Failed to add task. Please try again.'); } });
     // --- FIX: Use activeAppId from state ---
-    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure? This action cannot be undone.")) { const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
+    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure? This action cannot be undone.")) { const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); setNotification && setNotification('Failed to delete task. Please try again.'); } } });
 
     const handleShareProject = () => {
         const url = `${window.location.origin}?id=${projectId}`;
@@ -952,7 +953,8 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         });
 
         const csvString = csvRows.join('\n');
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const bom = '\uFEFF';
+        const blob = new Blob([bom + csvString], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.href = url;
@@ -971,8 +973,8 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
             tasksToSort.sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
         } else if (sortBy === 'dueDate') {
             tasksToSort.sort((a, b) => {
-                const dateA = a.dueDate ? new Date(a.dueDate) : null;
-                const dateB = b.dueDate ? new Date(b.dueDate) : null;
+                const dateA = a.dueDate ? new Date(`${a.dueDate}T00:00:00Z`) : null;
+                const dateB = b.dueDate ? new Date(`${b.dueDate}T00:00:00Z`) : null;
                 if (!dateA && !dateB) return 0;
                 if (!dateA) return 1;
                 if (!dateB) return -1;
@@ -1377,7 +1379,7 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                     </div>
                     <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
                         {!task.dueDate && task.status !== 'Done' && <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-600/50 text-slate-300">No Due Date</span>}
-                        {task.dueDate && <span className="text-xs text-brand-light hidden sm:block">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-CA')}</span>}
+                        {task.dueDate && <span className="text-xs text-brand-light hidden sm:block">{new Date(task.dueDate + 'T00:00:00Z').toLocaleDateString('en-CA')}</span>}
                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span>
                         <div className="w-24 text-sm text-brand-light flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div>
                         <ChevronDown className={`w-6 h-6 text-brand-light transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
@@ -1448,11 +1450,16 @@ const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity
         if (isDemo || !trimmedComment || !db) return;
         // --- FIX: Use correct appId passed as a prop ---
         const commentsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments');
-        await addDoc(commentsCollectionRef, { text: trimmedComment, author: currentUser || 'Guest', timestamp: serverTimestamp() });
-        if (logActivity) {
-            logActivity(`${currentUser || 'Guest'} commented on '${taskTitle}': "${trimmedComment}"`);
+        try {
+            await addDoc(commentsCollectionRef, { text: trimmedComment, author: currentUser || 'Guest', timestamp: serverTimestamp() });
+            if (logActivity) {
+                logActivity(`${currentUser || 'Guest'} commented on '${taskTitle}': "${trimmedComment}"`);
+            }
+            setNewComment('');
+        } catch (e) {
+            console.error('Error adding comment: ', e);
+            // no setNotification available here; rely on console or consider lifting via callback if needed
         }
-        setNewComment('');
     };
 
     return (
