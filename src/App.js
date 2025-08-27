@@ -351,7 +351,6 @@ const HomePage = ({ db, appId, navigate, setNotification, user }) => {
     };
 
     useEffect(() => {
-        setRecentProjects(recentProjectsManager.get());
         resetMetaTags(); // Reset meta tags when returning to home page
     }, []);
 
@@ -881,7 +880,6 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         setProject(projectData);
                         setProjectName(projectData.name);
                         setProjectDeadline(projectData.deadline || '');
-                        recentProjectsManager.add({ id: projectData.id, name: projectData.name });
                         updateMetaTags(`Project: ${projectData.name}`, `View the project plan for ${projectData.name} on Meet & Tackle.`);
 
                 // Add noindex tag for project pages
