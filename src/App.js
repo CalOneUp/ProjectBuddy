@@ -602,8 +602,21 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     const [showNamePrompt, setShowNamePrompt] = useState(false);
     const [actionToRun, setActionToRun] = useState(null);
     const [activeAppId, setActiveAppId] = useState(appId); // --- FIX: State to hold the correct appId
+    const [showWhatsNew, setShowWhatsNew] = useState(false);
 
     const isDemo = projectId === DEMO_PROJECT_ID;
+
+    useEffect(() => {
+        const whatsNewSeen = localStorage.getItem('meetandtackle_whatsNewSeen_20250827');
+        if (!whatsNewSeen) {
+            setShowWhatsNew(true);
+        }
+    }, []);
+
+    const handleCloseWhatsNew = () => {
+        setShowWhatsNew(false);
+        localStorage.setItem('meetandtackle_whatsNewSeen_20250827', 'true');
+    };
 
     useEffect(() => {
         if (notification) {
@@ -988,6 +1001,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     return (
         <>
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+                <WhatsNewModal isOpen={showWhatsNew} onClose={handleCloseWhatsNew} />
                 <UserPromptModal
                     isOpen={showNamePrompt}
                     onSubmit={(name) => {
@@ -1146,6 +1160,31 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 };
 
 // --- Sub-Components for Project Page ---
+const WhatsNewModal = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
+            <div className="bg-brand-surface rounded-lg border border-slate-700 p-6 shadow-2xl max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
+                <h3 className="text-2xl font-bold text-white mb-4">✨ What's New at Meet & Tackle</h3>
+                <div className="space-y-4 text-brand-light">
+                    <p>We've rolled out some exciting new features to make managing your projects even easier!</p>
+                    <ul className="list-disc list-inside space-y-2 pl-2">
+                        <li><strong>Sort by Due Date:</strong> You can now sort your tasks by due date in addition to status.</li>
+                        <li><strong>Full Task Editing:</strong> Edit a task's title and category right from the task card.</li>
+                        <li><strong>CSV Export:</strong> Export your project tasks to a CSV file for easy sharing and importing into other tools.</li>
+                        <li><strong>Due Date Highlighting:</strong> Tasks without a due date now have a clear "No Due Date" tag.</li>
+                    </ul>
+                    <p>We hope you enjoy the new updates!</p>
+                </div>
+                <div className="flex justify-end mt-6">
+                    <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Got it!</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const UserPromptModal = ({ isOpen, onSubmit, onCancel }) => {
     const [name, setName] = useState('');
 
@@ -1329,7 +1368,7 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
     const allCategories = [...new Set([...(dynamicCategories || []), task.category])].sort();
 
     return (
-        <div ref={cardRef} className={`bg-brand-surface border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${!task.dueDate && task.status !== 'Done' ? 'border-purple-500/50' : deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-slate-700'}`}>
+        <div ref={cardRef} className={`bg-brand-surface border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-slate-700'}`}>
             <div className="p-4 cursor-pointer" onClick={toggleExpand}>
                 <div className="flex justify-between items-center gap-4">
                     <div className="flex items-center flex-1 min-w-0">
@@ -1337,6 +1376,7 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                         <p className="text-slate-100 truncate">{task.title}</p>
                     </div>
                     <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
+                        {!task.dueDate && task.status !== 'Done' && <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-600/50 text-slate-300">No Due Date</span>}
                         {task.dueDate && <span className="text-xs text-brand-light hidden sm:block">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-CA')}</span>}
                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span>
                         <div className="w-24 text-sm text-brand-light flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div>
