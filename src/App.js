@@ -1329,7 +1329,7 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
     const allCategories = [...new Set([...(dynamicCategories || []), task.category])].sort();
 
     return (
-        <div ref={cardRef} className={`bg-brand-surface border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-slate-700'}`}>
+        <div ref={cardRef} className={`bg-brand-surface border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${!task.dueDate && task.status !== 'Done' ? 'border-purple-500/50' : deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-slate-700'}`}>
             <div className="p-4 cursor-pointer" onClick={toggleExpand}>
                 <div className="flex justify-between items-center gap-4">
                     <div className="flex items-center flex-1 min-w-0">
