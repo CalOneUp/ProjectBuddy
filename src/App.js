@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc } from 'firebase/firestore';
 
@@ -17,6 +17,7 @@ const EyeIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" h
 const ZapIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>);
 const FileTextIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>);
 const UsersIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>);
+const DownloadIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>);
 
 // --- App Data & Config ---
 const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
@@ -586,6 +587,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     const [isLoading, setIsLoading] = useState(true);
     const [gsapReady, setGsapReady] = useState(false);
     const [filterOwner, setFilterOwner] = useState('All');
+    const [sortBy, setSortBy] = useState('status');
     const [showAddTaskForm, setShowAddTaskForm] = useState(false);
     const [showUpdateForm, setShowUpdateForm] = useState(false);
     const [updateFeedback, setUpdateFeedback] = useState('');
@@ -600,8 +602,21 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     const [showNamePrompt, setShowNamePrompt] = useState(false);
     const [actionToRun, setActionToRun] = useState(null);
     const [activeAppId, setActiveAppId] = useState(appId); // --- FIX: State to hold the correct appId
+    const [showWhatsNew, setShowWhatsNew] = useState(false);
 
     const isDemo = projectId === DEMO_PROJECT_ID;
+
+    useEffect(() => {
+        const whatsNewSeen = localStorage.getItem('meetandtackle_whatsNewSeen_20250901');
+        if (!whatsNewSeen) {
+            setShowWhatsNew(true);
+        }
+    }, []);
+
+    const handleCloseWhatsNew = () => {
+        setShowWhatsNew(false);
+        localStorage.setItem('meetandtackle_whatsNewSeen_20250901', 'true');
+    };
 
     useEffect(() => {
         if (notification) {
@@ -708,9 +723,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 const tasksCollectionRef = collection(db, 'artifacts', finalAppId, 'public', 'data', 'projects', projectId, 'tasks');
                 const q = query(tasksCollectionRef); // No ordering here, sort client-side
                 const unsubTasks = onSnapshot(q, (snapshot) => {
-                    const statusOrder = { 'In Progress': 1, 'Pending': 2, 'Done': 3 };
                     const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    fetchedTasks.sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
                     setTasks(fetchedTasks);
                     setIsLoading(false);
                 });
@@ -741,6 +754,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
             logActivity(`${actor} updated the project ${field} to "${updates[field]}"`);
         } catch (e) {
             console.error("Error updating project details: ", e);
+            setNotification && setNotification('Failed to update project details. Please try again.');
         }
     };
 
@@ -777,11 +791,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     // --- FIX: Use activeAppId from state ---
     const logActivity = async (logMessage) => { if(isDemo || !db) return; const logRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, author: userName, timestamp: serverTimestamp() }); };
     // --- FIX: Use activeAppId from state ---
-    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); } });
+    const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); setNotification && setNotification('Failed to update task. Please try again.'); } });
     // --- FIX: Use activeAppId from state ---
-    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); } });
+    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); setNotification && setNotification('Failed to add task. Please try again.'); } });
     // --- FIX: Use activeAppId from state ---
-    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure? This action cannot be undone.")) { const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); } } });
+    const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure? This action cannot be undone.")) { const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); setNotification && setNotification('Failed to delete task. Please try again.'); } } });
 
     const handleShareProject = () => {
         const url = `${window.location.origin}?id=${projectId}`;
@@ -906,9 +920,73 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         }
     };
 
-    const dynamicCategories = [...new Set(tasks.map(t => t.category).filter(Boolean))].sort();
+    const handleExportToCSV = () => {
+        if (isDemo) {
+            alert("Export is disabled for the demo project.");
+            return;
+        }
+
+        const escapeCsvField = (field) => {
+            if (field === null || field === undefined) {
+                return '';
+            }
+            const stringField = String(field);
+            if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) {
+                const escapedField = stringField.replace(/"/g, '""');
+                return `"${escapedField}"`;
+            }
+            return stringField;
+        };
+
+        const headers = ['Title', 'Owners', 'Category', 'Status', 'Due Date'];
+        const csvRows = [headers.join(',')];
+
+        tasks.forEach(task => {
+            const row = [
+                escapeCsvField(task.title),
+                escapeCsvField((task.owner || []).join('; ')),
+                escapeCsvField(task.category),
+                escapeCsvField(task.status),
+                escapeCsvField(task.dueDate || '')
+            ];
+            csvRows.push(row.join(','));
+        });
+
+        const csvString = csvRows.join('\n');
+        const bom = '\uFEFF';
+        const blob = new Blob([bom + csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        const filename = project?.name ? `${project.name.replace(/ /g, "_")}_tasks.csv` : 'tasks_export.csv';
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const sortedTasks = useMemo(() => {
+        const tasksToSort = [...tasks];
+        if (sortBy === 'status') {
+            const statusOrder = { 'In Progress': 1, 'Pending': 2, 'Done': 3 };
+            tasksToSort.sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
+        } else if (sortBy === 'dueDate') {
+            tasksToSort.sort((a, b) => {
+                const dateA = a.dueDate ? new Date(`${a.dueDate}T00:00:00Z`) : null;
+                const dateB = b.dueDate ? new Date(`${b.dueDate}T00:00:00Z`) : null;
+                if (!dateA && !dateB) return 0;
+                if (!dateA) return 1;
+                if (!dateB) return -1;
+                return dateA - dateB;
+            });
+        }
+        return tasksToSort;
+    }, [tasks, sortBy]);
+
+    const dynamicCategories = [...new Set(sortedTasks.map(t => t.category).filter(Boolean))].sort();
     const dynamicTeam = [...new Set(tasks.flatMap(t => t.owner || []))].filter((v, i, a) => a.indexOf(v) === i).sort();
-    const filteredTasks = filterOwner === 'All' ? tasks : tasks.filter(task => task.owner?.includes(filterOwner));
+    const filteredTasks = filterOwner === 'All' ? sortedTasks : sortedTasks.filter(task => task.owner?.includes(filterOwner));
     const progress = tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'Done').length / tasks.length) * 100) : 0;
     const projectDeadlineDate = projectDeadline ? new Date(projectDeadline) : null;
     const daysRemaining = projectDeadline ? getDaysRemaining(projectDeadline) : 0;
@@ -925,6 +1003,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     return (
         <>
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+                <WhatsNewModal isOpen={showWhatsNew} onClose={handleCloseWhatsNew} />
                 <UserPromptModal
                     isOpen={showNamePrompt}
                     onSubmit={(name) => {
@@ -1024,13 +1103,25 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         </div>
                     }
                 </header>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <div className="md:col-span-2 p-4 bg-brand-surface rounded-lg border border-slate-700">
                         <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-200">Overall Progress</span><span className="text-brand-primary font-semibold">{progress}%</span></div>
                         <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-brand-primary h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div>
                     </div>
-                    {/* Adjusted text color for better contrast on label */}
-                    <div className="p-4 bg-brand-surface rounded-lg border border-slate-700 flex items-center"><label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label><select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"><option value="All">All Owners</option>{dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}</select></div>
+                    <div className="p-4 bg-brand-surface rounded-lg border border-slate-700 flex items-center">
+                        <label htmlFor="ownerFilter" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Filter by Owner:</label>
+                        <select id="ownerFilter" value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary">
+                            <option value="All">All Owners</option>
+                            {dynamicTeam.map(member => (<option key={member} value={member}>{member}</option>))}
+                        </select>
+                    </div>
+                    <div className="p-4 bg-brand-surface rounded-lg border border-slate-700 flex items-center">
+                        <label htmlFor="sortBy" className="text-sm font-bold text-slate-200 mr-4 whitespace-nowrap">Sort by:</label>
+                        <select id="sortBy" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary">
+                            <option value="status">Status</option>
+                            <option value="dueDate">Due Date</option>
+                        </select>
+                    </div>
                 </div>
                  {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
                 <div className="mb-8 flex gap-4">
@@ -1040,12 +1131,16 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         {isGeneratingUpdate ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <MessageSquareIcon className="w-5 h-5" /> }
                         Generate Slack Update
                     </button>
+                    <button onClick={handleExportToCSV} disabled={isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <DownloadIcon className="w-5 h-5" />
+                        Export to CSV
+                    </button>
                 </div>
                 {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} team={dynamicTeam} onCancel={() => setShowAddTaskForm(false)} />}
                 {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
                 {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-primary"></div></div>) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={activeAppId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} />))}</div>
+                        <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={activeAppId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} dynamicCategories={dynamicCategories} />))}</div>
                         <div className="lg:col-span-1"><ActivityLog db={db} appId={activeAppId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
                     </div>
                 )}
@@ -1067,6 +1162,32 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 };
 
 // --- Sub-Components for Project Page ---
+const WhatsNewModal = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
+            <div className="bg-brand-surface rounded-lg border border-slate-700 p-6 shadow-2xl max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
+                <h3 className="text-2xl font-bold text-white mb-4">✨ What's New at Meet & Tackle</h3>
+                <div className="space-y-4 text-brand-light">
+                    <p>Fresh updates to make projects smoother and clearer:</p>
+                    <ul className="list-disc list-inside space-y-2 pl-2">
+                        <li>🗓️ <strong>Sort by Due Date</strong>: View upcoming work first, with undated tasks neatly pushed to the end.</li>
+                        <li>✏️ <strong>Full Task Editing</strong>: Update titles and categories right from the task card.</li>
+                        <li>📤 <strong>CSV Export</strong>: Download your tasks for sharing or importing elsewhere.</li>
+                        <li>⏰ <strong>Due Date Highlighting</strong>: Clear "No Due Date" tags help you spot missing deadlines.</li>
+                        <li>👥 <strong>Compact Owner Avatars</strong>: Owners now show as tidy initial bubbles with a +N indicator for larger teams.</li>
+                    </ul>
+                    <p>Thanks for using Meet & Tackle — more polish is on the way! ✨</p>
+                </div>
+                <div className="flex justify-end mt-6">
+                    <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Got it!</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const UserPromptModal = ({ isOpen, onSubmit, onCancel }) => {
     const [name, setName] = useState('');
 
@@ -1196,8 +1317,139 @@ const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
         </div>
     );
 };
-const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-brand-primary/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} />))}</div></div>);};
-const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo }) => { const [isExpanded, setIsExpanded] = useState(false); const cardRef = useRef(null); const toggleExpand = () => { if (!window.Flip) return; const state = window.Flip.getState(cardRef.current); setIsExpanded(!isExpanded); window.Flip.from(state, { duration: 0.3, ease: "power1.inOut" }); }; const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending']; const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none'; const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort(); return (<div ref={cardRef} className={`bg-brand-surface border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-slate-700'}`}><div className="p-4 cursor-pointer" onClick={toggleExpand}><div className="flex justify-between items-center gap-4"><div className="flex items-center flex-1 min-w-0">{deadlineStatus !== 'none' && task.status !== 'Done' && (<AlertTriangleIcon className={`w-5 h-5 mr-3 shrink-0 ${deadlineStatus === 'overdue' ? 'text-red-500' : 'text-yellow-500'}`} />)}<p className="text-slate-100 truncate">{task.title}</p></div><div className="flex items-center space-x-2 sm:space-x-4 shrink-0">{task.dueDate && <span className="text-xs text-brand-light hidden sm:block">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-CA')}</span>}<span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span><div className="w-24 text-sm text-brand-light flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div><ChevronDown className={`w-6 h-6 text-brand-light transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} /></div></div></div>{isExpanded && (<div className="px-4 pb-4 border-t border-slate-700"><div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4"><div><label className="block text-xs text-brand-light mb-1">Status</label><select value={task.status} onChange={(e) => onUpdate(task.id, {status: e.target.value})} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo}>{Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}</select></div><MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} /><div><label className="block text-xs text-brand-light mb-1">Due Date</label><input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo} /></div></div><CommentSection db={db} appId={appId} projectId={projectId} taskId={taskId} currentUser={userName} logActivity={logActivity} taskTitle={task.title} isDemo={isDemo} /><div className="flex justify-end mt-4"><button onClick={() => onDelete(task.id, task.title)} className="flex items-center text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><Trash2Icon className="w-4 h-4 mr-2" /> Delete Task</button></div></div>)}</div>);};
+const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo, dynamicCategories }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-brand-primary/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} dynamicCategories={dynamicCategories} />))}</div></div>);};
+const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo, dynamicCategories }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const cardRef = useRef(null);
+    const [editedTitle, setEditedTitle] = useState(task.title);
+    const [editedCategory, setEditedCategory] = useState(task.category);
+    const [newCategory, setNewCategory] = useState('');
+
+    useEffect(() => {
+        setEditedTitle(task.title);
+        setEditedCategory(task.category);
+    }, [task]);
+
+    const handleTitleBlur = () => {
+        const trimmedTitle = editedTitle.trim();
+        if (trimmedTitle && trimmedTitle !== task.title) {
+            onUpdate(task.id, { title: trimmedTitle });
+            logActivity(`${userName || 'Someone'} renamed task '${task.title}' to '${trimmedTitle}'`);
+        } else {
+            setEditedTitle(task.title);
+        }
+    };
+
+    const handleCategoryChange = (newCat) => {
+        setEditedCategory(newCat);
+        if (newCat !== '---new---' && newCat !== task.category) {
+            onUpdate(task.id, { category: newCat });
+            logActivity(`${userName || 'Someone'} changed category for '${task.title}' to '${newCat}'`);
+        }
+    };
+
+    const handleNewCategoryBlur = () => {
+        const trimmedCategory = newCategory.trim();
+        if (trimmedCategory) {
+            onUpdate(task.id, { category: trimmedCategory });
+            logActivity(`${userName || 'Someone'} moved task '${task.title}' to a new category '${trimmedCategory}'`);
+            setEditedCategory(trimmedCategory);
+            setNewCategory('');
+        }
+    };
+
+    const toggleExpand = () => {
+        if (!window.Flip) return;
+        const state = window.Flip.getState(cardRef.current);
+        setIsExpanded(!isExpanded);
+        window.Flip.from(state, { duration: 0.3, ease: "power1.inOut" });
+    };
+
+    const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending'];
+    const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none';
+    const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort();
+    const allCategories = [...new Set([...(dynamicCategories || []), task.category])].sort();
+
+    return (
+        <div ref={cardRef} className={`bg-brand-surface border rounded-lg mb-3 shadow-lg backdrop-blur-sm transition-all duration-300 ${deadlineStatus === 'overdue' && task.status !== 'Done' ? 'border-red-500/50' : deadlineStatus === 'dueSoon' && task.status !== 'Done' ? 'border-yellow-500/50' : 'border-slate-700'}`}>
+            <div className="p-4 cursor-pointer" onClick={toggleExpand}>
+                <div className="flex justify-between items-center gap-4">
+                    <div className="flex items-center flex-1 min-w-0">
+                        {deadlineStatus !== 'none' && task.status !== 'Done' && (<AlertTriangleIcon className={`w-5 h-5 mr-3 shrink-0 ${deadlineStatus === 'overdue' ? 'text-red-500' : 'text-yellow-500'}`} />)}
+                        <p className="text-slate-100 truncate">{task.title}</p>
+                    </div>
+                    <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
+                        {!task.dueDate && task.status !== 'Done' && <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-600/50 text-slate-300">No Due Date</span>}
+                        {task.dueDate && <span className="text-xs text-brand-light hidden sm:block">{new Date(task.dueDate + 'T00:00:00Z').toLocaleDateString('en-CA')}</span>}
+                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span>
+                        <div className="min-w-[6rem] max-w-[10rem] hidden md:flex items-center gap-1 shrink-0" title={(task.owner || []).join(', ')}>
+                            {(() => {
+                                const owners = task.owner || [];
+                                if (owners.length === 0) {
+                                    return <div className="w-5 h-5 rounded-full bg-slate-600 text-[10px] text-white grid place-items-center" title="Unassigned">?</div>;
+                                }
+                                const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('');
+                                const maxVisible = 3;
+                                const visible = owners.slice(0, maxVisible);
+                                const remaining = owners.length - visible.length;
+                                return (
+                                    <>
+                                        {visible.map((name) => (
+                                            <div key={name} className="w-5 h-5 rounded-full bg-slate-500 text-[10px] text-white grid place-items-center border border-slate-700">
+                                                {initials(name)}
+                                            </div>
+                                        ))}
+                                        {remaining > 0 && (
+                                            <div className="w-5 h-5 rounded-full bg-slate-700 text-[10px] text-white grid place-items-center border border-slate-700">+{remaining}</div>
+                                        )}
+                                    </>
+                                );
+                            })()}
+                        </div>
+                        <ChevronDown className={`w-6 h-6 text-brand-light transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                </div>
+            </div>
+            {isExpanded && (
+                <div className="px-4 pb-4 border-t border-slate-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 mb-4">
+                        <div className="md:col-span-2">
+                            <label className="block text-xs text-brand-light mb-1">Title</label>
+                            <input type="text" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} onBlur={handleTitleBlur} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo} />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-brand-light mb-1">Category</label>
+                            <select value={editedCategory} onChange={(e) => handleCategoryChange(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo}>
+                                {allCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                <option value="---new---">-- Add New Category --</option>
+                            </select>
+                            {editedCategory === '---new---' && (
+                                <input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} onBlur={handleNewCategoryBlur} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} required className="mt-2 w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" disabled={isDemo} />
+                            )}
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                        <div>
+                            <label className="block text-xs text-brand-light mb-1">Status</label>
+                            <select value={task.status} onChange={(e) => onUpdate(task.id, {status: e.target.value})} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo}>
+                                {Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}
+                            </select>
+                        </div>
+                        <MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} />
+                        <div>
+                            <label className="block text-xs text-brand-light mb-1">Due Date</label>
+                            <input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo} />
+                        </div>
+                    </div>
+                    <CommentSection db={db} appId={appId} projectId={projectId} taskId={taskId} currentUser={userName} logActivity={logActivity} taskTitle={task.title} isDemo={isDemo} />
+                    <div className="flex justify-end mt-4">
+                        <button onClick={() => onDelete(task.id, task.title)} className="flex items-center text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><Trash2Icon className="w-4 h-4 mr-2" /> Delete Task</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 const AddTaskForm = ({ onAddTask, categories, team, onCancel }) => { const [title, setTitle] = useState(''); const [category, setCategory] = useState(categories[0] || 'Uncategorized'); const [owners, setOwners] = useState(team[0] ? [team[0]] : []); const [dueDate, setDueDate] = useState(''); const [newCategory, setNewCategory] = useState(''); const [newOwner, setNewOwner] = useState(''); const handleSubmit = (e) => { e.preventDefault(); if (!title.trim()) return; const finalCategory = category === '---new---' ? newCategory.trim() : category; let finalOwners = owners; if (newOwner.trim()) { finalOwners = [...finalOwners, newOwner.trim()]; } if (!finalCategory || finalOwners.length === 0) { alert("Please ensure category and owner are set."); return; } onAddTask({ title: title.trim(), category: finalCategory, owner: finalOwners, dueDate, status: 'Pending' }); onCancel(); }; return (<div className="bg-brand-surface/80 border border-brand-primary/50 rounded-lg p-6 mb-8 backdrop-blur-sm relative z-20"><h3 className="text-lg font-bold text-white mb-4">Add New Task</h3><form onSubmit={handleSubmit}><div className="mb-4"><label htmlFor="title" className="block text-sm font-medium text-brand-light mb-1">Task Title</label><input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-brand-light mb-1">Category / Section</label><select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)} <option value="---new---">-- Add New Category --</option></select>{category === '---new---' && (<input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />)}</div><MultiSelectOwner owners={owners} allOwners={[...team, newOwner.trim()].filter(Boolean)} onUpdate={setOwners} isNewTask={true} newOwner={newOwner} setNewOwner={setNewOwner} /><div><label className="block text-sm font-medium text-brand-light mb-1">Due Date</label><input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"/></div></div><div className="flex justify-end gap-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Add Task</button></div></form></div>);};
 const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity, taskTitle, isDemo }) => {
     const [comments, setComments] = useState([]);
@@ -1222,11 +1474,16 @@ const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity
         if (isDemo || !trimmedComment || !db) return;
         // --- FIX: Use correct appId passed as a prop ---
         const commentsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', projectId, 'tasks', taskId, 'comments');
-        await addDoc(commentsCollectionRef, { text: trimmedComment, author: currentUser || 'Guest', timestamp: serverTimestamp() });
-        if (logActivity) {
-            logActivity(`${currentUser || 'Guest'} commented on '${taskTitle}': "${trimmedComment}"`);
+        try {
+            await addDoc(commentsCollectionRef, { text: trimmedComment, author: currentUser || 'Guest', timestamp: serverTimestamp() });
+            if (logActivity) {
+                logActivity(`${currentUser || 'Guest'} commented on '${taskTitle}': "${trimmedComment}"`);
+            }
+            setNewComment('');
+        } catch (e) {
+            console.error('Error adding comment: ', e);
+            // no setNotification available here; rely on console or consider lifting via callback if needed
         }
-        setNewComment('');
     };
 
     return (
