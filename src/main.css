@@ -545,6 +545,10 @@ video {
   display: none;
 }
 
+.visible {
+  visibility: visible;
+}
+
 .fixed {
   position: fixed;
 }
@@ -780,10 +784,6 @@ video {
   width: 4rem;
 }
 
-.w-24 {
-  width: 6rem;
-}
-
 .w-4 {
   width: 1rem;
 }
@@ -808,6 +808,10 @@ video {
   min-width: 0px;
 }
 
+.min-w-\[8rem\] {
+  min-width: 8rem;
+}
+
 .max-w-2xl {
   max-width: 42rem;
 }
@@ -826,6 +830,10 @@ video {
 
 .max-w-7xl {
   max-width: 80rem;
+}
+
+.max-w-\[14rem\] {
+  max-width: 14rem;
 }
 
 .max-w-lg {

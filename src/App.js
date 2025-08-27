@@ -1381,7 +1381,20 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                         {!task.dueDate && task.status !== 'Done' && <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-600/50 text-slate-300">No Due Date</span>}
                         {task.dueDate && <span className="text-xs text-brand-light hidden sm:block">{new Date(task.dueDate + 'T00:00:00Z').toLocaleDateString('en-CA')}</span>}
                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span>
-                        <div className="w-24 text-sm text-brand-light flex items-center gap-2 hidden md:flex"><UserIcon className="w-4 h-4" /><span>{(task.owner || []).join(', ')}</span></div>
+                        <div className="min-w-[8rem] max-w-[14rem] text-sm text-brand-light hidden md:flex items-center gap-2 shrink-0">
+                            <UserIcon className="w-4 h-4 shrink-0" />
+                            {(() => {
+                                const owners = task.owner || [];
+                                const maxVisible = 2;
+                                const visible = owners.slice(0, maxVisible);
+                                const remaining = owners.length - visible.length;
+                                const display = remaining > 0 ? `${visible.join(', ')} +${remaining}` : visible.join(', ');
+                                const title = owners.join(', ');
+                                return (
+                                    <span className="truncate" title={title}>{display || 'Unassigned'}</span>
+                                );
+                            })()}
+                        </div>
                         <ChevronDown className={`w-6 h-6 text-brand-light transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                 </div>
