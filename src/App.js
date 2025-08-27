@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
+import Joyride from 'react-joyride';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 // --- Helper Components & Icons ---
 const ChevronDown = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m6 9 6 6 6-6" /></svg>);
@@ -22,31 +24,6 @@ const DownloadIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="
 // --- App Data & Config ---
 const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
 const DEMO_PROJECT_ID = 'demo-project-123';
-
-// --- Local Storage Manager for Recent Projects (Moved to a clearer, single declaration spot) ---
-const recentProjectsManager = {
-    get: () => {
-        try {
-            const projects = localStorage.getItem('meetandtackle_recentProjects');
-            return projects ? JSON.parse(projects) : [];
-        } catch (e) {
-            console.error("Failed to parse recent projects from localStorage", e);
-            return [];
-        }
-    },
-    add: (project) => {
-        if (!project || !project.id || !project.name || project.id === DEMO_PROJECT_ID) return; // Don't save demo project
-        let projects = recentProjectsManager.get();
-        projects = projects.filter(p => p.id !== project.id);
-        projects.unshift(project);
-        projects = projects.slice(0, 5);
-        try {
-            localStorage.setItem('meetandtackle_recentProjects', JSON.stringify(projects));
-        } catch (e) {
-            console.error("Failed to save recent projects to localStorage", e);
-        }
-    }
-};
 
 // --- Utility Functions ---
 const getDeadlineStatus = (dueDate) => {
@@ -125,36 +102,31 @@ const ToastProvider = ({ children }) => {
 export default function App() {
     const [route, setRoute] = useState({ page: 'home', projectId: null });
     const [db, setDb] = useState(null);
+    const [auth, setAuth] = useState(null);
+    const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [notification, setNotification] = useState(null);
 
     // This effect handles URL changes and browser navigation (back/forward)
     useEffect(() => {
+        const getRouteFromUrl = () => {
+            const pathname = window.location.pathname;
+            const queryParams = new URLSearchParams(window.location.search);
+            const projectId = queryParams.get('id');
+
+            if (pathname === '/auth') return { page: 'auth', projectId: null };
+            if (pathname === '/how-it-works') return { page: 'how-it-works', projectId: null };
+            if (pathname === '/faq') return { page: 'faq', projectId: null };
+            if (projectId) return { page: 'project', projectId };
+            return { page: 'home', projectId: null };
+        };
+
         const handlePopState = (event) => {
-            if (event.state) {
-                setRoute(event.state);
-            } else {
-                // This handles going back to the initial state
-                const queryParams = new URLSearchParams(window.location.search);
-                const projectId = queryParams.get('id');
-                if (projectId) {
-                    setRoute({ page: 'project', projectId });
-                } else {
-                    setRoute({ page: 'home', projectId: null });
-                }
-            }
+            setRoute(event.state || getRouteFromUrl());
         };
 
         window.addEventListener('popstate', handlePopState);
-
-        // Set initial route based on the URL when the app first loads
-        const queryParams = new URLSearchParams(window.location.search);
-        const initialProjectId = queryParams.get('id');
-        if (initialProjectId) {
-            setRoute({ page: 'project', projectId: initialProjectId });
-        } else {
-             setRoute({ page: 'home', projectId: null });
-        }
+        setRoute(getRouteFromUrl()); // Set initial route
 
         return () => {
             window.removeEventListener('popstate', handlePopState);
@@ -165,15 +137,28 @@ export default function App() {
     // This effect syncs the app's route state to the browser's URL and history
     useEffect(() => {
         const { page, projectId } = route;
-        const url = page === 'project' && projectId ? `?id=${projectId}` : '/';
-        
-        // Prevent pushing the same state to history
-        if (window.location.search !== url && url.startsWith('?')) {
-            window.history.pushState(route, '', url);
-        } else if (window.location.pathname !== url && url === '/') {
-             window.history.pushState(route, '', url);
+        let url;
+        switch(page) {
+            case 'project':
+                url = `/?id=${projectId}`;
+                break;
+            case 'faq':
+                url = '/faq';
+                break;
+            case 'how-it-works':
+                url = '/how-it-works';
+                break;
+            case 'auth':
+                url = '/auth';
+                break;
+            default:
+                url = '/';
         }
 
+        const currentUrl = window.location.pathname + window.location.search;
+        if (currentUrl !== url) {
+            window.history.pushState(route, '', url);
+        }
     }, [route]);
     
     const navigate = (page, projectId = null) => {
@@ -197,18 +182,48 @@ export default function App() {
         };
     }, []);
 
-    // Initialize Firebase
+    // Initialize Firebase and Auth
     useEffect(() => {
         const firebaseConfig = JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG);
         try {
             const app = initializeApp(firebaseConfig);
             const firestore = getFirestore(app);
+            const authInstance = getAuth(app);
             setDb(firestore);
+            setAuth(authInstance);
+
+            const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
+                setUser(currentUser);
+                setIsLoading(false);
+            });
+            return () => unsubscribe();
+
         } catch (error) {
             console.error("Firebase initialization failed:", error);
+            setIsLoading(false);
         }
-        setIsLoading(false);
     }, []);
+
+    const handleSignUp = (email, password) => {
+        return createUserWithEmailAndPassword(auth, email, password).then(() => {
+            navigate('home');
+            setNotification('Welcome! Your account has been created.');
+        });
+    };
+
+    const handleLogin = (email, password) => {
+        return signInWithEmailAndPassword(auth, email, password).then(() => {
+            navigate('home');
+            setNotification('Welcome back!');
+        });
+    };
+
+    const handleLogout = () => {
+        signOut(auth).then(() => {
+            navigate('home');
+            setNotification('You have been logged out.');
+        });
+    };
 
 
     if (isLoading) {
@@ -233,8 +248,17 @@ export default function App() {
                         }
                     `}
                 </style>
-                { route.page === 'home' && <HomePage db={db} appId="meetandtackle-app" navigate={navigate} setNotification={setNotification} /> }
-                { route.page === 'project' && <ProjectPage db={db} appId="meetandtackle-app" projectId={route.projectId} navigate={navigate} notification={notification} setNotification={setNotification} /> }
+                <AppHeader navigate={navigate} user={user} onLogout={handleLogout} />
+                <div className="flex flex-col flex-grow">
+                    <div className="flex-grow">
+                        { route.page === 'home' && <HomePage db={db} appId="meetandtackle-app" navigate={navigate} setNotification={setNotification} user={user} /> }
+                        { route.page === 'project' && <ProjectPage db={db} appId="meetandtackle-app" projectId={route.projectId} navigate={navigate} notification={notification} setNotification={setNotification} user={user} /> }
+                        { route.page === 'how-it-works' && <HowItWorksPage navigate={navigate} /> }
+                        { route.page === 'faq' && <FaqPage navigate={navigate} /> }
+                        { route.page === 'auth' && <AuthPage onLogin={handleLogin} onSignUp={handleSignUp} /> }
+                    </div>
+                    <AppFooter navigate={navigate} />
+                </div>
             </div>
         </ToastProvider>
     );
@@ -242,13 +266,52 @@ export default function App() {
 
 
 // --- Home Page ---
-const HomePage = ({ db, appId, navigate, setNotification }) => {
+const HomePage = ({ db, appId, navigate, setNotification, user }) => {
     const [transcript, setTranscript] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState('');
-    const [recentProjects, setRecentProjects] = useState([]);
+    const [userProjects, setUserProjects] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    const [runTour, setRunTour] = useState(false);
+
+    const tourSteps = [
+        {
+            target: '.tour-step-1-textarea',
+            content: 'Paste your full meeting transcript here. The more detailed, the better!',
+            disableBeacon: true,
+        },
+        {
+            target: '.tour-step-2-generate',
+            content: 'Click here to let our AI analyze the transcript and build your project plan.',
+        },
+        {
+            target: '.tour-step-3-demo',
+            content: 'Or, if you want to see how it works first, just view our demo project!',
+        },
+    ];
+
+    useEffect(() => {
+        const hasSeenTour = localStorage.getItem('meetandtackle_hasSeenTour');
+        if (!hasSeenTour) {
+            setRunTour(true);
+            localStorage.setItem('meetandtackle_hasSeenTour', 'true');
+        }
+    }, []);
+
+    useEffect(() => {
+        if (user && db) {
+            const projectsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
+            const q = query(projectsRef, where("ownerId", "==", user.uid), orderBy('createdAt', 'desc'));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setUserProjects(projects);
+            });
+            return () => unsubscribe();
+        } else {
+            setUserProjects([]);
+        }
+    }, [user, db, appId]);
     
     // --- NEW: State and fetching for the expanded word list ---
     const [wordList, setWordList] = useState([]);
@@ -293,6 +356,11 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
     }, []);
 
     const handleGenerateProject = async () => {
+        if (!user) {
+            setError('Please log in or sign up to create a project.');
+            navigate('auth');
+            return;
+        }
         if (!transcript.trim()) {
             setError('Please paste a transcript first.');
             return;
@@ -389,7 +457,8 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                 name: projectData.projectName || 'Untitled Project', 
                 deadline: projectData.projectDeadline || null, 
                 createdAt: serverTimestamp(), 
-                code: generateProjectCode() 
+                code: generateProjectCode(),
+                ownerId: user.uid
             });
 
             const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'tasks');
@@ -465,30 +534,44 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            <Joyride
+                steps={tourSteps}
+                run={runTour}
+                continuous={true}
+                showProgress={true}
+                showSkipButton={true}
+                styles={{
+                    options: {
+                        arrowColor: '#1e293b', // bg-brand-surface
+                        backgroundColor: '#1e293b',
+                        primaryColor: '#38bdf8', // text-brand-primary
+                        textColor: '#d1d5db', // text-slate-300
+                        zIndex: 1000,
+                    }
+                }}
+            />
             <header className="text-center mb-12">
-                {/* Updated image tag for LCP optimization and WebP format */}
-                <img src="/mt-logo.webp" alt="Meet & Tackle Logo" className="mx-auto mb-4 max-w-sm" fetchpriority="high" />
+                <img src="/mt-logo.webp" alt="Meet & Tackle AI Meeting to Project Tool" className="mx-auto mb-4 max-w-sm" fetchpriority="high" />
+                <h1 className="text-4xl font-poppins font-bold text-white tracking-tight">Turn Meetings into Actionable Projects</h1>
                 <p className="text-brand-light text-lg mt-4">Hook into your action items. The best AI tool to tackle your meeting notes.</p>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:items-start">
+            <section id="main-tool" aria-labelledby="main-tool-heading" className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:items-start">
                 <div className="lg:col-span-3">
                     <div className="bg-brand-surface p-6 rounded-lg border border-slate-700 shadow-2xl">
-                        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="w-full h-96 bg-brand-dark border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-brand-primary placeholder-slate-500" disabled={isGenerating}/>
+                        <h2 id="main-tool-heading" className="sr-only">AI Project Generator</h2>
+                        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="tour-step-1-textarea w-full h-96 bg-brand-dark border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-brand-primary placeholder-slate-500" disabled={isGenerating} aria-label="Meeting transcript input"/>
                         <div className="mt-4 flex justify-between items-center">
-                             <p className="text-slate-400 text-sm">
-                                Or{" "}
-                                <button
-                                    onClick={() => navigate('project', DEMO_PROJECT_ID)}
-                                    className="text-brand-light hover:text-brand-primary underline font-semibold"
-                                >
-                                    view an example project
-                                </button>
-                            </p>
+                            <button
+                                onClick={() => navigate('project', DEMO_PROJECT_ID)}
+                                className="tour-step-3-demo px-6 py-3 text-base font-semibold text-slate-300 bg-transparent border border-slate-600 rounded-lg hover:bg-slate-800 transition-colors"
+                            >
+                                View Demo Project
+                            </button>
                             <div className="flex items-center">
-                                {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
-                                <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
+                                {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20" role="alert"><p>{error}</p></div>}
+                                <button onClick={handleGenerateProject} className="tour-step-2-generate flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
                                     {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
                                 </button>
                             </div>
@@ -496,92 +579,172 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                     </div>
                 </div>
 
-                <div className="lg:col-span-2">
+                <aside className="lg:col-span-2">
                     <div className="text-center mb-8">
                         <h2 className="text-2xl font-bold text-white mb-4">Already working on a project?</h2>
                         <div className="max-w-lg mx-auto bg-brand-surface p-6 rounded-lg border border-slate-700 shadow-2xl">
                             <form onSubmit={handleSearch} className="flex gap-2">
-                                <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />
-                                {/* Added aria-label for accessibility */}
+                                <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" aria-label="Project code input"/>
                                 <button type="submit" className="px-4 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching} aria-label="Search project by code">
                                     {isSearching ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <SearchIcon className="w-5 h-5" />}
                                 </button>
                             </form>
-                            {error && !isGenerating && <p className="text-sm text-red-400 mt-4">{error}</p>}
+                            {error && !isGenerating && <p className="text-sm text-red-400 mt-4" role="alert">{error}</p>}
                         </div>
                     </div>
 
-                    {recentProjects.length > 0 && (
-                        <div>
-                            <h2 className="text-2xl font-bold text-white mb-4 text-center">Recently Viewed Projects</h2>
+                    {user && userProjects.length > 0 && (
+                        <section aria-labelledby="user-projects-heading">
+                            <h2 id="user-projects-heading" className="text-2xl font-bold text-white mb-4 text-center">Your Projects</h2>
                             <div className="max-w-lg mx-auto space-y-3">
-                                {recentProjects.map(proj => (
+                                {userProjects.map(proj => (
                                     <div key={proj.id} onClick={() => navigate('project', proj.id)} className="bg-brand-surface p-4 rounded-lg border border-slate-700 hover:border-brand-primary flex justify-between items-center cursor-pointer transition-colors">
-                                        <span className="font-semibold text-slate-200">{proj.name}</span>
-                                        <ExternalLinkIcon className="w-5 h-5 text-slate-400" />
+                                        <div>
+                                            <span className="font-semibold text-slate-200">{proj.name}</span>
+                                            <p className="text-xs text-slate-400">Created: {new Date(proj.createdAt?.toDate()).toLocaleDateString()}</p>
+                                        </div>
+                                        <ExternalLinkIcon className="w-5 h-5 text-slate-400" aria-label="Open project" />
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </section>
                     )}
-                </div>
-            </div>
+                </aside>
+            </section>
 
-            <div className="my-24 py-16 bg-brand-surface rounded-2xl">
+            <section aria-labelledby="features-heading" className="my-24 py-16 bg-brand-surface rounded-2xl">
                 <div className="max-w-5xl mx-auto px-6 text-center">
-                    <h2 className="text-3xl font-bold text-white mb-4">Stop Drowning in Meeting Notes. Start Tackling Your Projects.</h2>
-                    {/* Adjusted text color for better contrast */}
+                    <h2 id="features-heading" className="text-3xl font-bold text-white mb-4">Stop Drowning in Meeting Notes. Start Tackling Your Projects.</h2>
                     <p className="text-slate-300 mb-12 max-w-3xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
-                            <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
+                            <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary" aria-hidden="true"/>
                             <h3 className="text-xl font-semibold text-white mb-2">AI Project Creation</h3>
-                            {/* Adjusted text color for better contrast */}
                             <p className="text-slate-300">Paste any meeting transcript and our AI will instantly generate a complete project plan, complete with tasks, owners, and categories.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
-                             <ZapIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
+                             <ZapIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary" aria-hidden="true"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Automatic Project Updates</h3>
-                            {/* Adjusted text color for better contrast */}
                             <p className="text-slate-300">Got a follow-up meeting? Just paste the new transcript. Our AI will intelligently update existing tasks and add new ones.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
-                           <UsersIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
+                           <UsersIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary" aria-hidden="true"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Collaborative Dashboard</h3>
-                            {/* Adjusted text color for better contrast */}
                             <p className="text-slate-300">Share your project with a unique code. Everyone can see the real-time status, add comments, and update tasks together.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
-                           <MessageSquareIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
+                           <MessageSquareIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary" aria-hidden="true"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Instant Slack Updates</h3>
-                            {/* Adjusted text color for better contrast */}
                             <p className="text-slate-300">With one click, generate a perfectly formatted Slack message to keep your team in the loop on project progress and at-risk tasks.</p>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
             
-            <div className="my-16">
+            <section aria-labelledby="transcription-help-heading" className="my-16">
                 <div className="max-w-4xl mx-auto px-6 text-center">
-                    <h2 className="text-3xl font-bold text-white mb-4">No Transcript? No Problem.</h2>
-                    {/* Adjusted text color for better contrast */}
+                    <h2 id="transcription-help-heading" className="text-3xl font-bold text-white mb-4">No Transcript? No Problem.</h2>
                     <p className="text-slate-300 mb-12 max-w-2xl mx-auto">Getting a transcript is easier than you think. Most meeting platforms have built-in transcription, or you can use a dedicated service. Once you have the text, just paste it in to see the magic happen.</p>
-                     <div className="flex justify-center gap-8">
-                        {/* Adjusted text color for better contrast on links */}
-                        <a href="https://support.zoom.us/hc/en-us/articles/115004794983-Using-audio-transcription-for-cloud-recordings" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Zoom</a>
-                        <a href="https://support.google.com/meet/answer/13286392?hl=en" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Google Meet</a>
-                        <a href="https://support.microsoft.com/en-us/office/view-live-transcription-in-a-te..." target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Microsoft Teams</a>
-                        <a href="https://otter.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Otter.ai</a>
-                        <a href="https://fireflies.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Fireflies.ai</a>
+                     <div className="flex justify-center gap-8" role="list">
+                        <a href="https://support.zoom.us/hc/en-us/articles/115004794983-Using-audio-transcription-for-cloud-recordings" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Zoom</a>
+                        <a href="https://support.google.com/meet/answer/13286392?hl=en" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Google Meet</a>
+                        <a href="https://support.microsoft.com/en-us/office/view-live-transcription-in-a-te..." target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Microsoft Teams</a>
+                        <a href="https://otter.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Otter.ai</a>
+                        <a href="https://fireflies.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Fireflies.ai</a>
+                    </div>
+                </div>
+            </section>
+        </main>
+    );
+};
+
+// --- Auth Components ---
+
+const AppHeader = ({ navigate, user, onLogout }) => {
+    return (
+        <header className="bg-brand-surface/50 backdrop-blur-lg border-b border-slate-700/50 sticky top-0 z-40">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-16">
+                    <div className="flex items-center cursor-pointer" onClick={() => navigate('home')}>
+                        <img src="/mt-logo.webp" alt="Meet & Tackle Logo" className="h-8 w-auto" />
+                    </div>
+                    <div className="flex items-center">
+                        {user ? (
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm text-slate-300 hidden sm:block">{user.email}</span>
+                                <button onClick={onLogout} className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">Logout</button>
+                            </div>
+                        ) : (
+                            <button onClick={() => navigate('auth')} className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">Login / Sign Up</button>
+                        )}
                     </div>
                 </div>
             </div>
-        </div>
+        </header>
+    );
+};
+
+const AuthPage = ({ onLogin, onSignUp }) => {
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        updateMetaTags(isLogin ? "Login | Meet & Tackle" : "Sign Up | Meet & Tackle", "Login or create an account to save your projects.");
+        return () => resetMetaTags();
+    }, [isLogin]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+        try {
+            if (isLogin) {
+                await onLogin(email, password);
+            } else {
+                await onSignUp(email, password);
+            }
+        } catch (err) {
+            setError(err.message.replace('Firebase: ', ''));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <main className="max-w-md mx-auto p-4 sm:p-6 lg:p-8 text-white mt-16">
+            <div className="bg-brand-surface p-8 rounded-lg border border-slate-700 shadow-2xl">
+                <h1 className="text-3xl font-poppins font-bold text-center mb-6">{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="email">Email Address</label>
+                        <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-3 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="password">Password</label>
+                        <input type="password" id="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-3 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
+                    </div>
+                    {error && <p className="text-sm text-red-400" role="alert">{error}</p>}
+                    <div>
+                        <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+                            {isLoading ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : (isLogin ? 'Login' : 'Sign Up')}
+                        </button>
+                    </div>
+                </form>
+                <div className="mt-6 text-center">
+                    <button onClick={() => setIsLogin(!isLogin)} className="text-sm text-slate-400 hover:text-brand-primary underline">
+                        {isLogin ? 'Need an account? Sign Up' : 'Already have an account? Login'}
+                    </button>
+                </div>
+            </div>
+        </main>
     );
 };
 
 // --- Project Page ---
-const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotification }) => {
+const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotification, user }) => {
     const [tasks, setTasks] = useState([]);
     const [project, setProject] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -627,24 +790,27 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 
     useEffect(() => {
         const storedName = localStorage.getItem('meetandtackle_userName');
-        if (storedName) {
+        if (user) {
+            setUserName(user.displayName || user.email);
+        } else if (storedName) {
             setUserName(storedName);
-        } else if (!isDemo) { // Don't prompt for name in demo mode
-            setShowNamePrompt(true);
         } else {
-            setUserName('Guest'); // Set a default name for demo
+            setUserName(null);
         }
-    }, [isDemo]);
+    }, [user]);
 
     const requireName = (action) => {
-        if (userName) {
-            action(userName);
-        } else if (!isDemo) { // Only prompt for name if not in demo mode
-            setActionToRun(() => action);
-            setShowNamePrompt(true);
-        } else {
-             alert("This feature is disabled in the demo project.");
+        if (user) { // If user is logged in, action is permitted.
+            action(user.displayName || user.email);
+            return;
         }
+        if (userName) { // If a guest name is already set in state, action is permitted.
+            action(userName);
+            return;
+        }
+        // Otherwise, prompt for a name.
+        setActionToRun(() => action);
+        setShowNamePrompt(true);
     };
 
     useEffect(() => { if (window.gsap && window.Flip) { if (!gsapReady) setGsapReady(true); return; } const gsapScript = document.createElement('script'); gsapScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js'; gsapScript.async = true; gsapScript.onload = () => { const flipScript = document.createElement('script'); flipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/Flip.min.js'; flipScript.async = true; flipScript.onload = () => { window.gsap.registerPlugin(window.Flip); setGsapReady(true); }; document.body.appendChild(flipScript); }; document.body.appendChild(gsapScript); }, [gsapReady]);
@@ -717,6 +883,12 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         setProjectDeadline(projectData.deadline || '');
                         recentProjectsManager.add({ id: projectData.id, name: projectData.name });
                         updateMetaTags(`Project: ${projectData.name}`, `View the project plan for ${projectData.name} on Meet & Tackle.`);
+
+                // Add noindex tag for project pages
+                const noIndexTag = document.createElement('meta');
+                noIndexTag.name = 'robots';
+                noIndexTag.content = 'noindex';
+                document.head.appendChild(noIndexTag);
                     }
                 });
 
@@ -732,6 +904,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                     unsubProject();
                     unsubTasks();
                     resetMetaTags();
+                    // Remove the noindex tag on cleanup
+                    const noIndexTag = document.querySelector('meta[name="robots"]');
+                    if (noIndexTag) {
+                        document.head.removeChild(noIndexTag);
+                    }
                 };
             } else {
                 console.error("Project not found in any location!");
@@ -1004,7 +1181,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         <>
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                 <WhatsNewModal isOpen={showWhatsNew} onClose={handleCloseWhatsNew} />
-                <UserPromptModal
+                 <UserPromptModal
                     isOpen={showNamePrompt}
                     onSubmit={(name) => {
                         setUserName(name);
@@ -1508,3 +1685,88 @@ const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, se
   <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-brand-surface border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
   {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
     <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-brand-dark border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-brand-primary"/></div>)}</div>)}</div></div>);};
+
+// --- Content Pages & Footer ---
+
+const AppFooter = ({ navigate }) => {
+    return (
+        <footer className="bg-brand-surface mt-24">
+            <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 text-center text-slate-400">
+                <img src="/mt-logo.webp" alt="Meet & Tackle Logo" className="mx-auto mb-6 h-12" />
+                <div className="flex justify-center space-x-6 mb-8">
+                    <button onClick={() => navigate('home')} className="text-sm hover:text-brand-primary transition-colors">Home</button>
+                    <button onClick={() => navigate('how-it-works')} className="text-sm hover:text-brand-primary transition-colors">How It Works</button>
+                    <button onClick={() => navigate('faq')} className="text-sm hover:text-brand-primary transition-colors">FAQ</button>
+                </div>
+                <p className="text-xs">&copy; {new Date().getFullYear()} Meet & Tackle. All rights reserved.</p>
+            </div>
+        </footer>
+    );
+};
+
+const HowItWorksPage = ({ navigate }) => {
+    useEffect(() => {
+        updateMetaTags("How It Works | Meet & Tackle", "Learn how Meet & Tackle uses AI to turn your meeting transcripts into actionable project plans in three simple steps.");
+        return () => resetMetaTags();
+    }, []);
+
+    return (
+        <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 text-white">
+            <h1 className="text-4xl font-poppins font-bold text-center mb-8">How It Works</h1>
+            <div className="space-y-12 text-lg text-slate-300">
+                <section className="flex items-center gap-8">
+                    <div className="flex-1">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-4">Step 1: Paste Your Transcript</h2>
+                        <p>Simply copy the full text from your meeting transcript and paste it into the text area on our homepage. Our tool works with transcripts from any source, like Zoom, Google Meet, or Otter.ai. For best results, include a list of attendees.</p>
+                    </div>
+                    <FileTextIcon className="w-32 h-32 text-slate-700"/>
+                </section>
+                <section className="flex items-center gap-8">
+                     <ZapIcon className="w-32 h-32 text-slate-700"/>
+                    <div className="flex-1 text-right">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-4">Step 2: Generate with AI</h2>
+                        <p>Click the "Generate Project" button. Our AI will read and analyze the entire conversation, intelligently identifying action items, tasks, owners, and deadlines. It understands context, so it knows who is responsible for what.</p>
+                    </div>
+                </section>
+                <section className="flex items-center gap-8">
+                    <div className="flex-1">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-4">Step 3: Collaborate & Tackle</h2>
+                        <p>You'll be taken to a new, shareable project board with all your tasks neatly organized. From here, you can edit tasks, update statuses, add comments, and share the project with your team using a unique code. No more lost action items!</p>
+                    </div>
+                    <UsersIcon className="w-32 h-32 text-slate-700"/>
+                </section>
+            </div>
+        </main>
+    );
+};
+
+const FaqPage = ({ navigate }) => {
+    useEffect(() => {
+        updateMetaTags("Frequently Asked Questions | Meet & Tackle", "Find answers to common questions about Meet & Tackle, including data privacy, supported formats, and how our AI works.");
+        return () => resetMetaTags();
+    }, []);
+
+    return (
+        <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 text-white">
+            <h1 className="text-4xl font-poppins font-bold text-center mb-12">Frequently Asked Questions</h1>
+            <div className="space-y-8">
+                <div>
+                    <h2 className="text-2xl font-semibold text-brand-primary mb-3">Is my data secure?</h2>
+                    <p className="text-slate-300">Yes. We send your transcript to the AI for processing, but we do not store the full transcript. We only save the generated project and task data to your project board. Project boards are only accessible via their unique, non-guessable code.</p>
+                </div>
+                <div>
+                    <h2 className="text-2xl font-semibold text-brand-primary mb-3">What transcript formats do you support?</h2>
+                    <p className="text-slate-300">We support plain text. As long as you can copy and paste the text of the conversation, our tool can analyze it. It's designed to be flexible and work with transcripts from any popular meeting software.</p>
+                </div>
+                <div>
+                    <h2 className="text-2xl font-semibold text-brand-primary mb-3">Can I use this for free?</h2>
+                    <p className="text-slate-300">Yes, Meet & Tackle is currently free to use. We believe in making productivity tools accessible to everyone.</p>
+                </div>
+                <div>
+                    <h2 className="text-2xl font-semibold text-brand-primary mb-3">How accurate is the AI?</h2>
+                    <p className="text-slate-300">Our AI is highly accurate, but its performance depends on the quality and clarity of the transcript. For best results, use transcripts from high-quality audio recordings and ensure speakers are clearly identified. You can always edit, add, or delete tasks on the project board after generation.</p>
+                </div>
+            </div>
+        </main>
+    );
+};
