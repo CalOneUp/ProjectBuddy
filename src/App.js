@@ -607,7 +607,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     const isDemo = projectId === DEMO_PROJECT_ID;
 
     useEffect(() => {
-        const whatsNewSeen = localStorage.getItem('meetandtackle_whatsNewSeen_20250827');
+        const whatsNewSeen = localStorage.getItem('meetandtackle_whatsNewSeen_20250901');
         if (!whatsNewSeen) {
             setShowWhatsNew(true);
         }
@@ -615,7 +615,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 
     const handleCloseWhatsNew = () => {
         setShowWhatsNew(false);
-        localStorage.setItem('meetandtackle_whatsNewSeen_20250827', 'true');
+        localStorage.setItem('meetandtackle_whatsNewSeen_20250901', 'true');
     };
 
     useEffect(() => {
@@ -1170,14 +1170,15 @@ const WhatsNewModal = ({ isOpen, onClose }) => {
             <div className="bg-brand-surface rounded-lg border border-slate-700 p-6 shadow-2xl max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
                 <h3 className="text-2xl font-bold text-white mb-4">✨ What's New at Meet & Tackle</h3>
                 <div className="space-y-4 text-brand-light">
-                    <p>We've rolled out some exciting new features to make managing your projects even easier!</p>
+                    <p>Fresh updates to make projects smoother and clearer:</p>
                     <ul className="list-disc list-inside space-y-2 pl-2">
-                        <li><strong>Sort by Due Date:</strong> You can now sort your tasks by due date in addition to status.</li>
-                        <li><strong>Full Task Editing:</strong> Edit a task's title and category right from the task card.</li>
-                        <li><strong>CSV Export:</strong> Export your project tasks to a CSV file for easy sharing and importing into other tools.</li>
-                        <li><strong>Due Date Highlighting:</strong> Tasks without a due date now have a clear "No Due Date" tag.</li>
+                        <li>🗓️ <strong>Sort by Due Date</strong>: View upcoming work first, with undated tasks neatly pushed to the end.</li>
+                        <li>✏️ <strong>Full Task Editing</strong>: Update titles and categories right from the task card.</li>
+                        <li>📤 <strong>CSV Export</strong>: Download your tasks for sharing or importing elsewhere.</li>
+                        <li>⏰ <strong>Due Date Highlighting</strong>: Clear "No Due Date" tags help you spot missing deadlines.</li>
+                        <li>👥 <strong>Compact Owner Avatars</strong>: Owners now show as tidy initial bubbles with a +N indicator for larger teams.</li>
                     </ul>
-                    <p>We hope you enjoy the new updates!</p>
+                    <p>Thanks for using Meet & Tackle — more polish is on the way! ✨</p>
                 </div>
                 <div className="flex justify-end mt-6">
                     <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Got it!</button>
