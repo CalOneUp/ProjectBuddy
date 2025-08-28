@@ -283,22 +283,10 @@ export default function App() {
         const provider = new GoogleAuthProvider();
         signInWithPopup(auth, provider)
             .then((result) => {
-                // This gives you a Google Access Token. You can use it to access the Google API.
-                // const credential = GoogleAuthProvider.credentialFromResult(result);
-                // const token = credential.accessToken;
-                // The signed-in user info.
-                // const user = result.user;
                 navigate('home');
                 setNotification(`Welcome, ${result.user.displayName}!`);
             }).catch((error) => {
-                // Handle Errors here.
-                const errorCode = error.code;
-                const errorMessage = error.message;
-                // The email of the user's account used.
-                // const email = error.customData.email;
-                // The AuthCredential type that was used.
-                // const credential = GoogleAuthProvider.credentialFromError(error);
-                setNotification(`Google login failed: ${errorMessage}`);
+                setNotification(`Google login failed: ${error.message}`);
             });
     };
 
@@ -306,7 +294,6 @@ export default function App() {
         return updateProfile(auth.currentUser, { displayName, photoURL })
             .then(() => {
                 setNotification('Profile updated successfully!');
-                // Manually trigger a re-render by updating the user state
                 setUser({...auth.currentUser});
             });
     };
@@ -329,16 +316,11 @@ export default function App() {
                 const errorData = await response.text();
                 throw new Error(errorData || 'Failed to delete account.');
             }
-
-            // The onAuthStateChanged listener will handle the user state change
-            // and the user will be effectively logged out.
-            // We just need to navigate away and show a notification.
             setNotification('Your account has been permanently deleted.');
             navigate('home');
 
         } catch (error) {
             console.error("Account deletion failed:", error);
-            // Re-throw the error so the component can display it
             throw error;
         }
     };
@@ -482,9 +464,8 @@ const HomePage = ({ db, appId, navigate, setNotification, user }) => {
 
     const handleGenerateProject = async () => {
         if (!user) {
-            setError('Please log in or sign up to create a project.');
-            navigate('auth');
-            return;
+            // Allow guest creation, but they won't own the project
+            // This is a design choice to allow for the original frictionless experience
         }
         if (!transcript.trim()) {
             setError('Please paste a transcript first.');
@@ -578,28 +559,28 @@ const HomePage = ({ db, appId, navigate, setNotification, user }) => {
 
             const projectsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
             
-            const newProjectRef = await addDoc(projectsCollectionRef, {
+            const newProject = {
                 name: projectData.projectName || 'Untitled Project',
                 deadline: projectData.projectDeadline || null,
                 createdAt: serverTimestamp(),
                 code: generateProjectCode(),
-                ownerId: user.uid,
-                members: [{
+            };
+
+            if (user) {
+                newProject.ownerId = user.uid;
+                newProject.members = [{
                     uid: user.uid,
                     email: user.email,
                     displayName: user.displayName,
                     photoURL: user.photoURL
-                }]
-            });
+                }];
+            }
+
+            const newProjectRef = await addDoc(projectsCollectionRef, newProject);
 
             const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'tasks');
             
-            const projectMembers = [{
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL
-            }];
+            const projectMembers = newProject.members || [];
 
             const tasksToAdd = projectData.tasks.map(task => {
                 const owners = (task.owner || []).map(name => {
@@ -1055,12 +1036,12 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
             updateMetaTags(`Project: ${demoProject.name}`, `View the project plan for ${demoProject.name} on Meet & Tackle.`);
             
             const demoTasks = [
-                { id: 'demo-1', title: 'Draft initial design mockups', owner: ['Alice'], category: 'Design', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 7)).toISOString().split('T')[0] },
-                { id: 'demo-2', title: 'Set up staging server environment', owner: ['Bob'], category: 'Development', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 10)).toISOString().split('T')[0] },
-                { id: 'demo-3', title: 'Finalize branding and color palette', owner: ['Alice'], category: 'Design', status: 'Done', dueDate: new Date(new Date().setDate(today.getDate() - 5)).toISOString().split('T')[0] },
-                { id: 'demo-4', title: 'Develop user authentication flow', owner: ['Charlie'], category: 'Development', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 21)).toISOString().split('T')[0] },
-                { id: 'demo-5', title: 'Write copy for the new homepage', owner: ['Unassigned'], category: 'Marketing', status: 'Pending', dueDate: '' },
-                { id: 'demo-6', title: 'Review and approve final designs', owner: ['David'], category: 'Design', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 14)).toISOString().split('T')[0] },
+                { id: 'demo-1', title: 'Draft initial design mockups', owner: [{type: 'guest', name: 'Alice'}], category: 'Design', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 7)).toISOString().split('T')[0] },
+                { id: 'demo-2', title: 'Set up staging server environment', owner: [{type: 'guest', name: 'Bob'}], category: 'Development', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 10)).toISOString().split('T')[0] },
+                { id: 'demo-3', title: 'Finalize branding and color palette', owner: [{type: 'guest', name: 'Alice'}], category: 'Design', status: 'Done', dueDate: new Date(new Date().setDate(today.getDate() - 5)).toISOString().split('T')[0] },
+                { id: 'demo-4', title: 'Develop user authentication flow', owner: [{type: 'guest', name: 'Charlie'}], category: 'Development', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 21)).toISOString().split('T')[0] },
+                { id: 'demo-5', title: 'Write copy for the new homepage', owner: [{type: 'guest', name: 'Unassigned'}], category: 'Marketing', status: 'Pending', dueDate: '' },
+                { id: 'demo-6', title: 'Review and approve final designs', owner: [{type: 'guest', name: 'David'}], category: 'Design', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 14)).toISOString().split('T')[0] },
             ];
             setTasks(demoTasks);
             setIsLoading(false);
@@ -1145,7 +1126,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         };
 
         fetchAndSubscribe();
-    }, [db, appId, projectId, isDemo]);
+    }, [db, appId, projectId, isDemo, user]);
 
     const handleProjectUpdate = (updates, actor) => {
         if (isDemo || !db || !projectId) return;
@@ -1253,11 +1234,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 
             if (JSON.stringify(newOwners) !== JSON.stringify(task.owner)) {
                 const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', task.id);
-                writeBatch.update(taskRef, { owner: newOwners });
+                batch.update(taskRef, { owner: newOwners });
             }
         });
 
-        writeBatch.commit().then(() => {
+        batch.commit().then(() => {
             setNotification(`Successfully claimed tasks assigned to ${guestName}.`);
             setClaimableGuestName(null);
             sessionStorage.setItem(`dismissed_claim_${projectId}_${guestName}`, 'true');
@@ -1272,7 +1253,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     // --- FIX: Use activeAppId from state ---
     const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); setNotification && setNotification('Failed to update task. Please try again.'); } });
     // --- FIX: Use activeAppId from state ---
-    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); setNotification && setNotification('Failed to add task. Please try again.'); } });
+    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [{type: 'guest', name: 'Unassigned'}] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); setNotification && setNotification('Failed to add task. Please try again.'); } });
     // --- FIX: Use activeAppId from state ---
     const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure? This action cannot be undone.")) { const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); setNotification && setNotification('Failed to delete task. Please try again.'); } } });
 
@@ -1304,7 +1285,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                     const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks');
                     const sanitizedNewTasks = newTasks.map(task => ({
                         title: task.title || 'Untitled Task',
-                        owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
+                        owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner.map(o => ({type: 'guest', name: o})) : [{type: 'guest', name: 'Unassigned'}],
                         category: task.category || 'General',
                         status: task.status || 'Pending',
                         dueDate: task.dueDate || ''
@@ -1383,7 +1364,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         try {
             const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error("Failed to generate update.");
             const result = await response.json();
@@ -1423,7 +1404,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         tasks.forEach(task => {
             const row = [
                 escapeCsvField(task.title),
-                escapeCsvField((task.owner || []).join('; ')),
+                escapeCsvField(task.owner.map(o => o.displayName || o.name).join('; ')),
                 escapeCsvField(task.category),
                 escapeCsvField(task.status),
                 escapeCsvField(task.dueDate || '')
