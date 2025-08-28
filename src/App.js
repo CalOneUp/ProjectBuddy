@@ -1360,7 +1360,9 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     
             Keep the update scannable and easy to read.
         `;
-    
+
+        const generationConfig = {}; // Define empty config for plain text response
+
         try {
             const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
