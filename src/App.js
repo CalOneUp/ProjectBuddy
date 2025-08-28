@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
 import Joyride from 'react-joyride';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc, writeBatch, arrayUnion } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
 
 // --- Helper Components & Icons ---
@@ -1191,6 +1191,28 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         }
     };
 
+    const handleJoinProject = () => {
+        if (!user || !project) return;
+        const projectRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId);
+
+        const newMember = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+        };
+
+        // Use updateDoc with arrayUnion to safely add the new member
+        updateDoc(projectRef, {
+            members: arrayUnion(newMember)
+        }).then(() => {
+            setNotification("You have successfully joined the project!");
+        }).catch(err => {
+            console.error("Error joining project: ", err);
+            setNotification("Failed to join the project. Please try again.");
+        });
+    };
+
     // Effect to find a guest assignee that matches the current logged-in user
     useEffect(() => {
         if (user && tasks.length > 0) {
@@ -1606,6 +1628,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 </div>
                  {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
                 <div className="mb-8 flex gap-4">
+                    {user && !project.members?.some(m => m.uid === user.uid) && (
+                         <button onClick={handleJoinProject} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity">
+                            <UserIcon className="w-5 h-5" /> Join Project
+                        </button>
+                    )}
                     <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
                     <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
                     <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">

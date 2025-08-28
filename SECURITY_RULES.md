@@ -17,11 +17,12 @@ service cloud.firestore {
       allow read: if true;
 
       // Only the authenticated owner can update the project's main details or delete it.
-      // Guest users can create projects, but they will have no owner and these rules
-      // will prevent them from being edited or deleted. This is a reasonable tradeoff
-      // for allowing guest creation.
+      // Any authenticated user can join a project (update the 'members' array).
       allow create: if true;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      allow update: if request.auth != null &&
+                    (request.auth.uid == resource.data.ownerId ||
+                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']));
+      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
     }
 
     // Rules for subcollections within a project (tasks, comments, activityLog)
