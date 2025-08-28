@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMe
 import Joyride from 'react-joyride';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc, writeBatch } from 'firebase/firestore';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
 
 // --- Helper Components & Icons ---
 const GoogleIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...props}><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></svg>);
@@ -234,19 +234,6 @@ export default function App() {
         }
     }, []);
 
-    const handleSignUp = (email, password) => {
-        return createUserWithEmailAndPassword(auth, email, password).then(() => {
-            navigate('home');
-            setNotification('Welcome! Your account has been created.');
-        });
-    };
-
-    const handleLogin = (email, password) => {
-        return signInWithEmailAndPassword(auth, email, password).then(() => {
-            navigate('home');
-            setNotification('Welcome back!');
-        });
-    };
 
     const handleLogout = () => {
         signOut(auth).then(() => {
@@ -349,7 +336,7 @@ export default function App() {
                         { route.page === 'project' && <ProjectPage db={db} appId="meetandtackle-app" projectId={route.projectId} navigate={navigate} notification={notification} setNotification={setNotification} user={user} /> }
                         { route.page === 'how-it-works' && <HowItWorksPage navigate={navigate} /> }
                         { route.page === 'faq' && <FaqPage navigate={navigate} /> }
-                        { route.page === 'auth' && <AuthPage onLogin={handleLogin} onSignUp={handleSignUp} onGoogleLogin={handleGoogleLogin} /> }
+                        { route.page === 'auth' && <AuthPage onGoogleLogin={handleGoogleLogin} /> }
                         { route.page === 'settings' && <SettingsPage user={user} onUpdateProfile={handleUpdateProfile} onDeleteAccount={handleDeleteAccount} /> }
                     </div>
                     <AppFooter navigate={navigate} />
@@ -836,68 +823,17 @@ const AppHeader = ({ navigate, user, onLogout }) => {
     );
 };
 
-const AuthPage = ({ onLogin, onSignUp, onGoogleLogin }) => {
-    const [isLogin, setIsLogin] = useState(true);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-
+const AuthPage = ({ onGoogleLogin }) => {
     useEffect(() => {
-        updateMetaTags(isLogin ? "Login | Meet & Tackle" : "Sign Up | Meet & Tackle", "Login or create an account to save your projects.");
+        updateMetaTags("Login or Sign Up | Meet & Tackle", "Sign in with your Google account to save projects and track your meeting action items.");
         return () => resetMetaTags();
-    }, [isLogin]);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setIsLoading(true);
-        try {
-            if (isLogin) {
-                await onLogin(email, password);
-            } else {
-                await onSignUp(email, password);
-            }
-        } catch (err) {
-            setError(err.message.replace('Firebase: ', ''));
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    }, []);
 
     return (
         <main className="max-w-md mx-auto p-4 sm:p-6 lg:p-8 text-white mt-16">
-            <div className="bg-brand-surface p-8 rounded-lg border border-slate-700 shadow-2xl">
-                <h1 className="text-3xl font-poppins font-bold text-center mb-6">{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="email">Email Address</label>
-                        <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-3 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="password">Password</label>
-                        <input type="password" id="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-3 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
-                    </div>
-                    {error && <p className="text-sm text-red-400" role="alert">{error}</p>}
-                    <div>
-                        <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
-                            {isLoading ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : (isLogin ? 'Login' : 'Sign Up')}
-                        </button>
-                    </div>
-                </form>
-                <div className="mt-6 text-center">
-                    <button onClick={() => setIsLogin(!isLogin)} className="text-sm text-slate-400 hover:text-brand-primary underline">
-                        {isLogin ? 'Need an account? Sign Up' : 'Already have an account? Login'}
-                    </button>
-                </div>
-                <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div className="w-full border-t border-slate-600" />
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                        <span className="bg-brand-surface px-2 text-slate-400">Or continue with</span>
-                    </div>
-                </div>
+            <div className="bg-brand-surface p-8 rounded-lg border border-slate-700 shadow-2xl text-center">
+                <h1 className="text-3xl font-poppins font-bold mb-4">Welcome to Meet & Tackle</h1>
+                <p className="text-slate-300 mb-8">Sign in with your Google account to continue.</p>
                 <div>
                     <button onClick={onGoogleLogin} type="button" className="w-full flex items-center justify-center gap-3 px-6 py-3 text-base font-semibold text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors">
                         <GoogleIcon className="w-5 h-5" />
@@ -1648,7 +1584,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
                 {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-primary"></div></div>) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={activeAppId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} dynamicCategories={dynamicCategories} />))}</div>
+                        <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={activeAppId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} dynamicCategories={dynamicCategories} projectMembers={project.members || []} />))}</div>
                         <div className="lg:col-span-1"><ActivityLog db={db} appId={activeAppId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
                     </div>
                 )}
@@ -1842,8 +1778,8 @@ const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
         </div>
     );
 };
-const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo, dynamicCategories }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-brand-primary/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} dynamicCategories={dynamicCategories} />))}</div></div>);};
-const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo, dynamicCategories }) => {
+const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo, dynamicCategories, projectMembers }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-brand-primary/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} dynamicCategories={dynamicCategories} projectMembers={projectMembers} />))}</div></div>);};
+const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo, dynamicCategories, projectMembers }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const cardRef = useRef(null);
     const [editedTitle, setEditedTitle] = useState(task.title);
@@ -1892,7 +1828,6 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
 
     const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending'];
     const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none';
-    const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort();
     const allCategories = [...new Set([...(dynamicCategories || []), task.category])].sort();
 
     return (
@@ -1973,7 +1908,7 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                                 {Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}
                             </select>
                         </div>
-                        <MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} />
+                        <MultiSelectOwner owners={task.owner || []} projectMembers={projectMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} />
                         <div>
                             <label className="block text-xs text-brand-light mb-1">Due Date</label>
                             <input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo} />
@@ -2042,10 +1977,80 @@ const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity
         </div>
     );
 };
-const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, setNewOwner, isDemo }) => { const [isOpen, setIsOpen] = useState(false); const wrapperRef = useRef(null); useEffect(() => { function handleClickOutside(event) { if (wrapperRef.current && !wrapperRef.current.contains(event.target)) { setIsOpen(false); } } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [wrapperRef]); const handleOwnerChange = (owner, checked) => { const newOwners = checked ? [...owners, owner] : owners.filter(o => o !== owner); onUpdate(newOwners); }; return (<div><label className="block text-xs text-brand-light mb-1">Owner(s)</label><div ref={wrapperRef} className="relative"><button type="button" onClick={() => !isDemo && setIsOpen(!isOpen)} className="w-full bg-brand-dark border border-slate-700 rounded-md p-2 text-sm text-white text-left flex justify-between items-center disabled:cursor-not-allowed" disabled={isDemo}>
-  <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-brand-surface border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
-  {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
-    <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-brand-dark border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-brand-primary"/></div>)}</div>)}</div></div>);};
+const MultiSelectOwner = ({ owners, projectMembers, onUpdate, isDemo }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [newGuestName, setNewGuestName] = useState('');
+    const wrapperRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [wrapperRef]);
+
+    const handleSelectionChange = (item, isSelected) => {
+        let newOwners;
+        if (isSelected) {
+            newOwners = [...owners, item];
+        } else {
+            newOwners = owners.filter(o => (o.uid || o.name) !== (item.uid || item.name));
+        }
+        onUpdate(newOwners);
+    };
+
+    const handleAddGuest = (e) => {
+        if (e.key === 'Enter' && newGuestName.trim()) {
+            e.preventDefault();
+            const newGuest = { type: 'guest', name: newGuestName.trim() };
+            // Avoid adding duplicate guests
+            if (!owners.some(o => o.type === 'guest' && o.name === newGuest.name)) {
+                 onUpdate([...owners, newGuest]);
+            }
+            setNewGuestName('');
+        }
+    };
+
+    const isSelected = (item) => {
+        return owners.some(o => o.uid === item.uid || (o.type === 'guest' && o.name === item.name));
+    };
+
+    return (
+        <div>
+            <label className="block text-xs text-brand-light mb-1">Owner(s)</label>
+            <div ref={wrapperRef} className="relative">
+                <button type="button" onClick={() => !isDemo && setIsOpen(!isOpen)} className="w-full bg-brand-dark border border-slate-700 rounded-md p-2 text-sm text-white text-left flex justify-between items-center disabled:cursor-not-allowed" disabled={isDemo}>
+                    <span className="truncate">{(owners || []).map(o => o.displayName || o.name).join(', ') || 'Select Owner(s)'}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-brand-surface border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {(projectMembers || []).map(member => (
+                             <label key={member.uid} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer">
+                                <input type="checkbox" checked={isSelected(member)} onChange={(e) => handleSelectionChange(member, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
+                                {member.photoURL ? <img src={member.photoURL} alt={member.displayName} className="ml-3 h-5 w-5 rounded-full"/> : <UserIcon className="ml-3 h-5 w-5 text-slate-400"/>}
+                                <span className="ml-2 text-sm text-slate-200">{member.displayName || member.email}</span>
+                            </label>
+                        ))}
+                         {(owners || []).filter(o => o.type === 'guest').map(guest => (
+                             <label key={guest.name} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer">
+                                <input type="checkbox" checked={true} onChange={(e) => handleSelectionChange(guest, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
+                                <UserIcon className="ml-3 h-5 w-5 text-slate-600"/>
+                                <span className="ml-2 text-sm text-slate-200">{guest.name} (Guest)</span>
+                            </label>
+                         ))}
+                        <div className="p-2 border-t border-slate-700">
+                            <input type="text" placeholder="Add guest by name..." value={newGuestName} onChange={e => setNewGuestName(e.target.value)} onKeyDown={handleAddGuest} className="w-full bg-brand-dark border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-brand-primary"/>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 // --- Content Pages & Footer ---
 
