@@ -970,22 +970,9 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     const [showNamePrompt, setShowNamePrompt] = useState(false);
     const [actionToRun, setActionToRun] = useState(null);
     const [activeAppId, setActiveAppId] = useState(appId); // --- FIX: State to hold the correct appId
-    const [showWhatsNew, setShowWhatsNew] = useState(false);
     const [claimableGuestName, setClaimableGuestName] = useState(null);
 
     const isDemo = projectId === DEMO_PROJECT_ID;
-
-    useEffect(() => {
-        const lastSeenVersion = localStorage.getItem('meetandtackle_whatsNewSeen');
-        if (lastSeenVersion !== LATEST_WHATS_NEW_VERSION) {
-            setShowWhatsNew(true);
-        }
-    }, []);
-
-    const handleCloseWhatsNew = () => {
-        setShowWhatsNew(false);
-        localStorage.setItem('meetandtackle_whatsNewSeen', LATEST_WHATS_NEW_VERSION);
-    };
 
     useEffect(() => {
         if (notification) {
