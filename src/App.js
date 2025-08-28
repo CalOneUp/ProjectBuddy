@@ -1102,7 +1102,13 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 const tasksCollectionRef = collection(db, 'artifacts', finalAppId, 'public', 'data', 'projects', projectId, 'tasks');
                 const q = query(tasksCollectionRef); // No ordering here, sort client-side
                 const unsubTasks = onSnapshot(q, (snapshot) => {
-                    const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const fetchedTasks = snapshot.docs.map(doc => {
+                        const task = { id: doc.id, ...doc.data() };
+                        if (task.owner && task.owner.length > 0 && typeof task.owner[0] === 'string') {
+                            task.owner = task.owner.map(name => ({ type: 'guest', name: name }));
+                        }
+                        return task;
+                    });
                     setTasks(fetchedTasks);
                     setIsLoading(false);
                 });
