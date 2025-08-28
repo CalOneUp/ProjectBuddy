@@ -26,6 +26,43 @@ const DownloadIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="
 const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
 const DEMO_PROJECT_ID = 'demo-project-123';
 
+const WHATS_NEW_POSTS = [
+    {
+        version: '20250828',
+        date: 'August 28, 2025',
+        title: 'User Accounts, Settings & More!',
+        content: () => (
+            <>
+                <p>This is a huge update with a ton of new features based on your feedback!</p>
+                <ul className="list-disc list-inside space-y-2 pl-2 mt-2">
+                    <li><b>User Accounts:</b> You can now sign up with Google to save your projects and track your work.</li>
+                    <li><b>Settings Page:</b> Manage your profile picture, display name, and even delete your account from the new settings area.</li>
+                     <li><b>Hybrid Collaboration:</b> The app now supports assigning tasks to both registered users (with avatars!) and guests.</li>
+                    <li><b>Task Claiming:</b> If you see tasks assigned to a guest with your name, a banner will prompt you to claim them as your own.</li>
+                    <li><b>Content Pages:</b> Check out the new "How It Works" and "FAQ" pages in the footer.</li>
+                </ul>
+            </>
+        )
+    },
+    {
+        version: '20250827',
+        date: 'August 27, 2025',
+        title: 'Initial Feature Polish',
+        content: () => (
+            <>
+                <p>We've polished some of the initial features to make projects smoother and clearer:</p>
+                 <ul className="list-disc list-inside space-y-2 pl-2 mt-2">
+                    <li>🗓️ <strong>Sort by Due Date</strong>: View upcoming work first.</li>
+                    <li>✏️ <strong>Full Task Editing</strong>: Update titles and categories right from the task card.</li>
+                    <li>📤 <strong>CSV Export</strong>: Download your tasks for sharing or importing elsewhere.</li>
+                    <li>⏰ <strong>Due Date Highlighting</strong>: Clear "No Due Date" tags help you spot missing deadlines.</li>
+                </ul>
+            </>
+        )
+    }
+];
+const LATEST_WHATS_NEW_VERSION = WHATS_NEW_POSTS[0].version;
+
 const recentProjectsManager = {
     get: (userId) => {
         if (!userId) return [];
@@ -957,15 +994,15 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     const isDemo = projectId === DEMO_PROJECT_ID;
 
     useEffect(() => {
-        const whatsNewSeen = localStorage.getItem('meetandtackle_whatsNewSeen_20250901');
-        if (!whatsNewSeen) {
+        const lastSeenVersion = localStorage.getItem('meetandtackle_whatsNewSeen');
+        if (lastSeenVersion !== LATEST_WHATS_NEW_VERSION) {
             setShowWhatsNew(true);
         }
     }, []);
 
     const handleCloseWhatsNew = () => {
         setShowWhatsNew(false);
-        localStorage.setItem('meetandtackle_whatsNewSeen_20250901', 'true');
+        localStorage.setItem('meetandtackle_whatsNewSeen', LATEST_WHATS_NEW_VERSION);
     };
 
     useEffect(() => {
@@ -1628,21 +1665,23 @@ const WhatsNewModal = ({ isOpen, onClose }) => {
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
-            <div className="bg-brand-surface rounded-lg border border-slate-700 p-6 shadow-2xl max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
-                <h3 className="text-2xl font-bold text-white mb-4">✨ What's New at Meet & Tackle</h3>
-                <div className="space-y-4 text-brand-light">
-                    <p>Fresh updates to make projects smoother and clearer:</p>
-                    <ul className="list-disc list-inside space-y-2 pl-2">
-                        <li>🗓️ <strong>Sort by Due Date</strong>: View upcoming work first, with undated tasks neatly pushed to the end.</li>
-                        <li>✏️ <strong>Full Task Editing</strong>: Update titles and categories right from the task card.</li>
-                        <li>📤 <strong>CSV Export</strong>: Download your tasks for sharing or importing elsewhere.</li>
-                        <li>⏰ <strong>Due Date Highlighting</strong>: Clear "No Due Date" tags help you spot missing deadlines.</li>
-                        <li>👥 <strong>Compact Owner Avatars</strong>: Owners now show as tidy initial bubbles with a +N indicator for larger teams.</li>
-                    </ul>
-                    <p>Thanks for using Meet & Tackle — more polish is on the way! ✨</p>
+            <div className="bg-brand-surface rounded-lg border border-slate-700 shadow-2xl max-w-2xl w-full mx-4 flex flex-col" style={{ maxHeight: '80vh' }} onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-700">
+                    <h3 className="text-2xl font-bold text-white">✨ What's New at Meet & Tackle</h3>
                 </div>
-                <div className="flex justify-end mt-6">
-                    <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Got it!</button>
+                <div className="p-6 space-y-8 text-brand-light overflow-y-auto">
+                    {WHATS_NEW_POSTS.map(post => (
+                        <article key={post.version}>
+                            <p className="text-sm text-slate-400 mb-1">{post.date}</p>
+                            <h4 className="text-xl font-bold text-brand-primary mb-3">{post.title}</h4>
+                            <div className="text-slate-300 space-y-2">{post.content()}</div>
+                        </article>
+                    ))}
+                </div>
+                <div className="p-6 border-t border-slate-700 mt-auto">
+                    <div className="flex justify-end">
+                        <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Got it!</button>
+                    </div>
                 </div>
             </div>
         </div>
