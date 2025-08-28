@@ -28,12 +28,27 @@ const DEMO_PROJECT_ID = 'demo-project-123';
 
 const WHATS_NEW_POSTS = [
     {
+        version: '20250829',
+        date: 'August 29, 2025',
+        title: 'Avatars, UI Polish & More!',
+        content: () => (
+            <>
+                <p>Another round of updates to make your project management experience even better! 🚀</p>
+                <ul className="list-disc list-inside space-y-2 pl-2 mt-2">
+                    <li>👤 <strong>User Avatars:</strong> Task owners who are registered users will now show their smiling faces (or avatars) in the task cards. Guests will still show their initials.</li>
+                    <li>✨ <strong>Cleaner Titles:</strong> We've removed "Meet & Tackle /" from the project page titles for a cleaner look.</li>
+                    <li>🐞 <strong>Bug Squashing:</strong> We've fixed a bug where task owner dropdowns were not populating correctly and another where initials were not showing up properly for guests. Thanks for the reports!</li>
+                </ul>
+            </>
+        )
+    },
+    {
         version: '20250828',
         date: 'August 28, 2025',
         title: 'User Accounts, Settings & More!',
         content: () => (
             <>
-                <p>This is a huge update with a ton of new features based on your feedback!</p>
+                <p>This is a huge update with a ton of new features based on your feedback! 🎉</p>
                 <ul className="list-disc list-inside space-y-2 pl-2 mt-2">
                     <li><b>User Accounts:</b> You can now sign up with Google to save your projects and track your work.</li>
                     <li><b>Settings Page:</b> Manage your profile picture, display name, and even delete your account from the new settings area.</li>
