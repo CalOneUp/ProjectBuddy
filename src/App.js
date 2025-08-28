@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
 import Joyride from 'react-joyride';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc } from 'firebase/firestore';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc, writeBatch } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, updateProfile, deleteUser } from "firebase/auth";
 
 // --- Helper Components & Icons ---
 const GoogleIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...props}><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></svg>);
@@ -25,6 +25,31 @@ const DownloadIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="
 // --- App Data & Config ---
 const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
 const DEMO_PROJECT_ID = 'demo-project-123';
+
+const recentProjectsManager = {
+    get: (userId) => {
+        if (!userId) return [];
+        try {
+            const projects = localStorage.getItem(`meetandtackle_recentProjects_${userId}`);
+            return projects ? JSON.parse(projects) : [];
+        } catch (e) {
+            console.error("Failed to parse recent projects from localStorage", e);
+            return [];
+        }
+    },
+    add: (userId, project) => {
+        if (!userId || !project || !project.id || !project.name || project.id === DEMO_PROJECT_ID) return;
+        let projects = recentProjectsManager.get(userId);
+        projects = projects.filter(p => p.id !== project.id);
+        projects.unshift({id: project.id, name: project.name}); // Only store id and name
+        projects = projects.slice(0, 5);
+        try {
+            localStorage.setItem(`meetandtackle_recentProjects_${userId}`, JSON.stringify(projects));
+        } catch (e) {
+            console.error("Failed to save recent projects to localStorage", e);
+        }
+    }
+};
 
 // --- Utility Functions ---
 const getDeadlineStatus = (dueDate) => {
@@ -116,6 +141,7 @@ export default function App() {
             const projectId = queryParams.get('id');
 
             if (pathname === '/auth') return { page: 'auth', projectId: null };
+            if (pathname === '/settings') return { page: 'settings', projectId: null };
             if (pathname === '/how-it-works') return { page: 'how-it-works', projectId: null };
             if (pathname === '/faq') return { page: 'faq', projectId: null };
             if (projectId) return { page: 'project', projectId };
@@ -151,6 +177,9 @@ export default function App() {
                 break;
             case 'auth':
                 url = '/auth';
+                break;
+            case 'settings':
+                url = '/settings';
                 break;
             default:
                 url = '/';
@@ -249,6 +278,25 @@ export default function App() {
             });
     };
 
+    const handleUpdateProfile = (displayName, photoURL) => {
+        return updateProfile(auth.currentUser, { displayName, photoURL })
+            .then(() => {
+                setNotification('Profile updated successfully!');
+                // Manually trigger a re-render by updating the user state
+                setUser({...auth.currentUser});
+            });
+    };
+
+    const handleDeleteAccount = () => {
+        if (window.confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
+            return deleteUser(auth.currentUser).then(() => {
+                navigate('home');
+                setNotification('Your account has been permanently deleted.');
+            });
+        }
+        return Promise.reject(new Error('Action cancelled by user.'));
+    };
+
 
     if (isLoading) {
         return <div className="min-h-screen bg-brand-dark flex justify-center items-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-primary"></div></div>;
@@ -280,6 +328,7 @@ export default function App() {
                         { route.page === 'how-it-works' && <HowItWorksPage navigate={navigate} /> }
                         { route.page === 'faq' && <FaqPage navigate={navigate} /> }
                         { route.page === 'auth' && <AuthPage onLogin={handleLogin} onSignUp={handleSignUp} onGoogleLogin={handleGoogleLogin} /> }
+                        { route.page === 'settings' && <SettingsPage user={user} onUpdateProfile={handleUpdateProfile} onDeleteAccount={handleDeleteAccount} /> }
                     </div>
                     <AppFooter navigate={navigate} />
                 </div>
@@ -295,6 +344,7 @@ const HomePage = ({ db, appId, navigate, setNotification, user }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState('');
     const [userProjects, setUserProjects] = useState([]);
+    const [visitedProjects, setVisitedProjects] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [runTour, setRunTour] = useState(false);
@@ -325,15 +375,21 @@ const HomePage = ({ db, appId, navigate, setNotification, user }) => {
 
     useEffect(() => {
         if (user && db) {
+            // Fetch owned projects
             const projectsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
             const q = query(projectsRef, where("ownerId", "==", user.uid), orderBy('createdAt', 'desc'));
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setUserProjects(projects);
             });
+
+            // Get visited projects from local storage
+            setVisitedProjects(recentProjectsManager.get(user.uid));
+
             return () => unsubscribe();
         } else {
             setUserProjects([]);
+            setVisitedProjects([]);
         }
     }, [user, db, appId]);
     
@@ -476,24 +532,53 @@ const HomePage = ({ db, appId, navigate, setNotification, user }) => {
 
             const projectsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
             
-            const newProjectRef = await addDoc(projectsCollectionRef, { 
-                name: projectData.projectName || 'Untitled Project', 
-                deadline: projectData.projectDeadline || null, 
-                createdAt: serverTimestamp(), 
+            const newProjectRef = await addDoc(projectsCollectionRef, {
+                name: projectData.projectName || 'Untitled Project',
+                deadline: projectData.projectDeadline || null,
+                createdAt: serverTimestamp(),
                 code: generateProjectCode(),
-                ownerId: user.uid
+                ownerId: user.uid,
+                members: [{
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName,
+                    photoURL: user.photoURL
+                }]
             });
 
             const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'tasks');
             
-            const tasksToAdd = projectData.tasks.map(task => ({
-                title: task.title || 'Untitled Task',
-                owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
-                category: task.category || 'General',
-                status: task.status || 'Pending',
-                dueDate: task.dueDate || ''
-            }));
-            const uniqueOwners = new Set(tasksToAdd.flatMap(t => t.owner).filter(o => o !== 'Unassigned'));
+            const projectMembers = [{
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL
+            }];
+
+            const tasksToAdd = projectData.tasks.map(task => {
+                const owners = (task.owner || []).map(name => {
+                    const matchedMember = projectMembers.find(m => m.displayName?.toLowerCase() === name.toLowerCase() || m.email?.toLowerCase() === name.toLowerCase());
+                    if (matchedMember) {
+                        return {
+                            type: 'user',
+                            uid: matchedMember.uid,
+                            displayName: matchedMember.displayName,
+                            photoURL: matchedMember.photoURL
+                        };
+                    }
+                    return { type: 'guest', name: name };
+                });
+
+                return {
+                    title: task.title || 'Untitled Task',
+                    owner: owners.length > 0 ? owners : [{ type: 'guest', name: 'Unassigned' }],
+                    category: task.category || 'General',
+                    status: task.status || 'Pending',
+                    dueDate: task.dueDate || ''
+                };
+            });
+
+            const uniqueOwners = new Set(tasksToAdd.flatMap(t => t.owner.map(o => o.displayName || o.name)).filter(name => name !== 'Unassigned'));
 
             await Promise.all(tasksToAdd.map(task => addDoc(tasksCollectionRef, task)));
             
@@ -632,6 +717,20 @@ const HomePage = ({ db, appId, navigate, setNotification, user }) => {
                             </div>
                         </section>
                     )}
+
+                    {user && visitedProjects.length > 0 && (
+                        <section aria-labelledby="visited-projects-heading" className="mt-8">
+                            <h2 id="visited-projects-heading" className="text-2xl font-bold text-white mb-4 text-center">Recently Visited</h2>
+                            <div className="max-w-lg mx-auto space-y-3">
+                                {visitedProjects.map(proj => (
+                                    <div key={proj.id} onClick={() => navigate('project', proj.id)} className="bg-brand-surface/50 p-4 rounded-lg border border-slate-700 hover:border-brand-primary flex justify-between items-center cursor-pointer transition-colors">
+                                        <span className="font-semibold text-slate-200">{proj.name}</span>
+                                        <ExternalLinkIcon className="w-5 h-5 text-slate-400" aria-label="Open project" />
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
                 </aside>
             </section>
 
@@ -694,8 +793,16 @@ const AppHeader = ({ navigate, user, onLogout }) => {
                     <div className="flex items-center">
                         {user ? (
                             <div className="flex items-center gap-4">
-                                <span className="text-sm text-slate-300 hidden sm:block">{user.email}</span>
                                 <button onClick={onLogout} className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">Logout</button>
+                                <div onClick={() => navigate('settings')} className="cursor-pointer">
+                                    {user.photoURL ? (
+                                        <img src={user.photoURL} alt="Your profile" className="h-8 w-8 rounded-full" />
+                                    ) : (
+                                        <div className="h-8 w-8 rounded-full bg-slate-600 flex items-center justify-center text-sm font-bold text-white">
+                                            {user.email ? user.email[0].toUpperCase() : '?'}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ) : (
                             <button onClick={() => navigate('auth')} className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">Login / Sign Up</button>
@@ -780,6 +887,90 @@ const AuthPage = ({ onLogin, onSignUp, onGoogleLogin }) => {
     );
 };
 
+const SettingsPage = ({ user, onUpdateProfile, onDeleteAccount }) => {
+    const [displayName, setDisplayName] = useState('');
+    const [photoURL, setPhotoURL] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        updateMetaTags("Settings | Meet & Tackle", "Manage your account settings.");
+        if (user) {
+            setDisplayName(user.displayName || '');
+            setPhotoURL(user.photoURL || '');
+        }
+        return () => resetMetaTags();
+    }, [user]);
+
+    const handleProfileSubmit = (e) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+        onUpdateProfile(displayName, photoURL)
+            .catch(err => setError(err.message))
+            .finally(() => setIsLoading(false));
+    };
+
+    const handleDelete = () => {
+        setError('');
+        onDeleteAccount()
+            .catch(err => {
+                if (err.code === 'auth/requires-recent-login') {
+                    setError('This is a sensitive action. Please log out and log back in before deleting your account.');
+                } else {
+                    setError(err.message);
+                }
+            });
+    }
+
+    if (!user) {
+        return (
+            <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 text-white">
+                 <h1 className="text-4xl font-poppins font-bold text-center mb-12">Settings</h1>
+                 <p className="text-center text-slate-400">You must be logged in to view this page.</p>
+            </main>
+        )
+    }
+
+    return (
+        <main className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8 text-white">
+            <h1 className="text-4xl font-poppins font-bold text-center mb-12">Account Settings</h1>
+
+            <div className="bg-brand-surface p-8 rounded-lg border border-slate-700 shadow-2xl mb-8">
+                <h2 className="text-2xl font-semibold text-brand-primary mb-6">Your Profile</h2>
+                <form onSubmit={handleProfileSubmit} className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="email">Email Address</label>
+                        <input type="email" id="email" value={user.email || ''} disabled className="w-full bg-brand-dark/50 border border-slate-600 rounded-md p-3 text-sm text-slate-400 cursor-not-allowed"/>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="displayName">Display Name</label>
+                        <input type="text" id="displayName" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-3 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="photoURL">Photo URL</label>
+                        <input type="url" id="photoURL" value={photoURL} onChange={e => setPhotoURL(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-3 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
+                    </div>
+                    <div>
+                        <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+                            {isLoading ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : 'Save Profile'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div className="bg-red-900/20 p-8 rounded-lg border border-red-500/30 shadow-2xl">
+                 <h2 className="text-2xl font-semibold text-red-400 mb-4">Danger Zone</h2>
+                 <p className="text-slate-300 mb-4">Deleting your account is a permanent action. All of your authentication data will be removed. Please see our data policy note for information on project data.</p>
+                 {error && <p className="text-sm text-red-400 mb-4" role="alert">{error}</p>}
+                 <button onClick={handleDelete} className="w-full flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                     Delete My Account
+                 </button>
+            </div>
+        </main>
+    );
+};
+
 // --- Project Page ---
 const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotification, user }) => {
     const [tasks, setTasks] = useState([]);
@@ -803,6 +994,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     const [actionToRun, setActionToRun] = useState(null);
     const [activeAppId, setActiveAppId] = useState(appId); // --- FIX: State to hold the correct appId
     const [showWhatsNew, setShowWhatsNew] = useState(false);
+    const [claimableGuestName, setClaimableGuestName] = useState(null);
 
     const isDemo = projectId === DEMO_PROJECT_ID;
 
@@ -918,6 +1110,9 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         setProject(projectData);
                         setProjectName(projectData.name);
                         setProjectDeadline(projectData.deadline || '');
+                        if (user) {
+                            recentProjectsManager.add(user.uid, projectData);
+                        }
                         updateMetaTags(`Project: ${projectData.name}`, `View the project plan for ${projectData.name} on Meet & Tackle.`);
 
                 // Add noindex tag for project pages
@@ -999,6 +1194,60 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
             setProjectDeadline(project.deadline || '');
             setIsEditingDeadline(false);
         }
+    };
+
+    // Effect to find a guest assignee that matches the current logged-in user
+    useEffect(() => {
+        if (user && tasks.length > 0) {
+            const guestOwners = [...new Set(tasks.flatMap(t => t.owner).filter(o => o.type === 'guest' && o.name !== 'Unassigned').map(o => o.name))];
+            const userDisplayName = user.displayName?.toLowerCase();
+
+            if (!userDisplayName) return;
+
+            const foundMatch = guestOwners.find(name => userDisplayName.includes(name.toLowerCase()));
+
+            if (foundMatch) {
+                const dismissed = sessionStorage.getItem(`dismissed_claim_${projectId}_${foundMatch}`);
+                if (!dismissed) {
+                    setClaimableGuestName(foundMatch);
+                }
+            }
+        }
+    }, [user, tasks, projectId]);
+
+    const handleClaimTasks = (guestName) => {
+        if (!user || !db) return;
+
+        const batch = writeBatch(db);
+        const userAsOwner = {
+            type: 'user',
+            uid: user.uid,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+        };
+
+        tasks.forEach(task => {
+            const newOwners = task.owner.map(o => {
+                if (o.type === 'guest' && o.name === guestName) {
+                    return userAsOwner;
+                }
+                return o;
+            });
+
+            if (JSON.stringify(newOwners) !== JSON.stringify(task.owner)) {
+                const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', task.id);
+                writeBatch.update(taskRef, { owner: newOwners });
+            }
+        });
+
+        writeBatch.commit().then(() => {
+            setNotification(`Successfully claimed tasks assigned to ${guestName}.`);
+            setClaimableGuestName(null);
+            sessionStorage.setItem(`dismissed_claim_${projectId}_${guestName}`, 'true');
+        }).catch(err => {
+            console.error("Failed to claim tasks: ", err);
+            setNotification(`Error claiming tasks. Please try again.`);
+        });
     };
 
     // --- FIX: Use activeAppId from state ---
@@ -1198,9 +1447,10 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     }, [tasks, sortBy]);
 
     const dynamicCategories = [...new Set(sortedTasks.map(t => t.category).filter(Boolean))].sort();
-    const dynamicTeam = [...new Set(tasks.flatMap(t => t.owner || []))].filter((v, i, a) => a.indexOf(v) === i).sort();
-    const filteredTasks = filterOwner === 'All' ? sortedTasks : sortedTasks.filter(task => task.owner?.includes(filterOwner));
+    const dynamicTeam = [...new Set(tasks.flatMap(t => t.owner?.map(o => o.displayName || o.name) || []))].filter(Boolean).sort();
+    const filteredTasks = filterOwner === 'All' ? sortedTasks : sortedTasks.filter(task => task.owner?.some(o => (o.displayName || o.name) === filterOwner));
     const progress = tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'Done').length / tasks.length) * 100) : 0;
+    const owner = project?.members?.find(m => m.uid === project.ownerId);
     const projectDeadlineDate = projectDeadline ? new Date(projectDeadline) : null;
     const daysRemaining = projectDeadline ? getDaysRemaining(projectDeadline) : 0;
 
@@ -1217,6 +1467,14 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         <>
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                 <WhatsNewModal isOpen={showWhatsNew} onClose={handleCloseWhatsNew} />
+                <ClaimBanner
+                    guestName={claimableGuestName}
+                    onClaim={() => handleClaimTasks(claimableGuestName)}
+                    onDismiss={() => {
+                        sessionStorage.setItem(`dismissed_claim_${projectId}_${claimableGuestName}`, 'true');
+                        setClaimableGuestName(null);
+                    }}
+                />
                  <UserPromptModal
                     isOpen={showNamePrompt}
                     onSubmit={(name) => {
@@ -1269,7 +1527,22 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                                     </span>
                                 )}
                             </h1>
-                            <p className="text-slate-300 mt-2">A real-time dashboard to track project progress.</p>
+                            <div className="flex items-center gap-3 mt-2">
+                                {owner ? (
+                                    <>
+                                        {owner.photoURL ? (
+                                            <img src={owner.photoURL} alt={owner.displayName || owner.email} className="h-6 w-6 rounded-full" />
+                                        ) : (
+                                            <div className="h-6 w-6 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-white">
+                                                {owner.email ? owner.email[0].toUpperCase() : '?'}
+                                            </div>
+                                        )}
+                                        <span className="text-sm text-slate-300">Owned by <span className="font-semibold text-slate-100">{owner.displayName || owner.email}</span></span>
+                                    </>
+                                ) : (
+                                    <p className="text-slate-300">A real-time dashboard to track project progress.</p>
+                                )}
+                            </div>
                         </div>
                         <div className="text-right">
                             {project.code &&
@@ -1375,6 +1648,23 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 };
 
 // --- Sub-Components for Project Page ---
+
+const ClaimBanner = ({ guestName, onClaim, onDismiss }) => {
+    if (!guestName) return null;
+
+    return (
+        <div className="bg-brand-primary/10 border border-brand-primary/30 rounded-lg p-4 mb-6 flex items-center justify-between gap-4">
+            <p className="text-sm text-slate-200">
+                It looks like some tasks are assigned to <span className="font-bold text-white">"{guestName}"</span>. Is this you?
+            </p>
+            <div className="flex gap-4">
+                <button onClick={onClaim} className="px-4 py-1.5 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Yes, Claim Tasks</button>
+                <button onClick={onDismiss} className="text-sm font-semibold text-slate-300 hover:text-white">&times;</button>
+            </div>
+        </div>
+    )
+}
+
 const WhatsNewModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
@@ -1595,23 +1885,36 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                         {!task.dueDate && task.status !== 'Done' && <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-600/50 text-slate-300">No Due Date</span>}
                         {task.dueDate && <span className="text-xs text-brand-light hidden sm:block">{new Date(task.dueDate + 'T00:00:00Z').toLocaleDateString('en-CA')}</span>}
                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span>
-                        <div className="min-w-[6rem] max-w-[10rem] hidden md:flex items-center gap-1 shrink-0" title={(task.owner || []).join(', ')}>
+                        <div className="min-w-[6rem] max-w-[10rem] hidden md:flex items-center gap-1 shrink-0" title={(task.owner || []).map(o => o.displayName || o.name).join(', ')}>
                             {(() => {
                                 const owners = task.owner || [];
-                                if (owners.length === 0) {
+                                if (owners.length === 0 || owners[0]?.name === 'Unassigned') {
                                     return <div className="w-5 h-5 rounded-full bg-slate-600 text-[10px] text-white grid place-items-center" title="Unassigned">?</div>;
                                 }
-                                const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('');
+
                                 const maxVisible = 3;
                                 const visible = owners.slice(0, maxVisible);
                                 const remaining = owners.length - visible.length;
+
                                 return (
                                     <>
-                                        {visible.map((name) => (
-                                            <div key={name} className="w-5 h-5 rounded-full bg-slate-500 text-[10px] text-white grid place-items-center border border-slate-700">
-                                                {initials(name)}
-                                            </div>
-                                        ))}
+                                        {visible.map((owner, index) => {
+                                            if (owner.type === 'user') {
+                                                return owner.photoURL ? (
+                                                    <img key={owner.uid || index} src={owner.photoURL} alt={owner.displayName} className="w-5 h-5 rounded-full border border-slate-700"/>
+                                                ) : (
+                                                    <div key={owner.uid || index} className="w-5 h-5 rounded-full bg-slate-500 text-[10px] text-white grid place-items-center border border-slate-700">
+                                                        {owner.displayName ? owner.displayName.split(/\s+/).filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('') : '?'}
+                                                    </div>
+                                                );
+                                            }
+                                            // Guest user
+                                            return (
+                                                <div key={owner.name || index} className="w-5 h-5 rounded-full bg-slate-700 text-[10px] text-white grid place-items-center border border-slate-800" title={owner.name}>
+                                                    {owner.name ? owner.name[0].toUpperCase() : '?'}
+                                                </div>
+                                            );
+                                        })}
                                         {remaining > 0 && (
                                             <div className="w-5 h-5 rounded-full bg-slate-700 text-[10px] text-white grid place-items-center border border-slate-700">+{remaining}</div>
                                         )}
