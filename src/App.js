@@ -1505,13 +1505,6 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                     <div className="flex justify-between items-start">
                         <div>
                             <h1 className="text-4xl font-poppins font-bold text-white tracking-tight mb-2">
-                                <span
-                                    onClick={() => navigate('home')}
-                                    className="cursor-pointer hover:text-brand-light transition-colors duration-200"
-                                >
-                                    Meet & Tackle
-                                </span>
-                                <span className="text-slate-500 mx-2">/</span>
                                 {isEditingName ? (
                                     <input
                                         type="text"
