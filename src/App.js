@@ -1894,7 +1894,7 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                         <div className="min-w-[6rem] max-w-[10rem] hidden md:flex items-center gap-1 shrink-0" title={(task.owner || []).map(o => o.displayName || o.name).join(', ')}>
                             {(() => {
                                 const owners = task.owner || [];
-                                if (owners.length === 0 || owners[0]?.name === 'Unassigned') {
+                                if (owners.length === 0 || (owners.length === 1 && owners[0]?.name === 'Unassigned')) {
                                     return <div className="w-5 h-5 rounded-full bg-slate-600 text-[10px] text-white grid place-items-center" title="Unassigned">?</div>;
                                 }
 
