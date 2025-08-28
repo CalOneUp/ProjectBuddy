@@ -1911,14 +1911,20 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                                 return (
                                     <>
                                         {visible.map((owner, index) => {
-                                            const name = owner.displayName || owner.name || '';
-                                            const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
-                                            const colorClass = owner.type === 'user' ? 'bg-slate-500' : 'bg-slate-700';
-                                            return (
-                                                 <div key={owner.uid || owner.name || index} className={`w-5 h-5 rounded-full ${colorClass} text-[10px] text-white grid place-items-center border border-slate-700`} title={name}>
-                                                    {initials || '?'}
-                                                </div>
-                                            );
+                                            if (owner.type === 'user' && owner.photoURL) {
+                                                return (
+                                                    <img key={owner.uid} src={owner.photoURL} alt={owner.displayName} className="w-5 h-5 rounded-full border border-slate-700" title={owner.displayName} />
+                                                );
+                                            } else {
+                                                const name = owner.displayName || owner.name || '';
+                                                const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
+                                                const colorClass = owner.type === 'user' ? 'bg-slate-500' : 'bg-slate-700';
+                                                return (
+                                                     <div key={owner.uid || owner.name || index} className={`w-5 h-5 rounded-full ${colorClass} text-[10px] text-white grid place-items-center border border-slate-700`} title={name}>
+                                                        {initials || '?'}
+                                                    </div>
+                                                );
+                                            }
                                         })}
                                         {remaining > 0 && (
                                             <div className="w-5 h-5 rounded-full bg-slate-700 text-[10px] text-white grid place-items-center border border-slate-700">+{remaining}</div>
