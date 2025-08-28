@@ -1617,7 +1617,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         Export to CSV
                     </button>
                 </div>
-                {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} team={dynamicTeam} onCancel={() => setShowAddTaskForm(false)} />}
+                {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} projectMembers={project.members || []} onCancel={() => setShowAddTaskForm(false)} />}
                 {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
                 {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-primary"></div></div>) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1962,7 +1962,72 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
         </div>
     );
 };
-const AddTaskForm = ({ onAddTask, categories, team, onCancel }) => { const [title, setTitle] = useState(''); const [category, setCategory] = useState(categories[0] || 'Uncategorized'); const [owners, setOwners] = useState(team[0] ? [team[0]] : []); const [dueDate, setDueDate] = useState(''); const [newCategory, setNewCategory] = useState(''); const [newOwner, setNewOwner] = useState(''); const handleSubmit = (e) => { e.preventDefault(); if (!title.trim()) return; const finalCategory = category === '---new---' ? newCategory.trim() : category; let finalOwners = owners; if (newOwner.trim()) { finalOwners = [...finalOwners, newOwner.trim()]; } if (!finalCategory || finalOwners.length === 0) { alert("Please ensure category and owner are set."); return; } onAddTask({ title: title.trim(), category: finalCategory, owner: finalOwners, dueDate, status: 'Pending' }); onCancel(); }; return (<div className="bg-brand-surface/80 border border-brand-primary/50 rounded-lg p-6 mb-8 backdrop-blur-sm relative z-20"><h3 className="text-lg font-bold text-white mb-4">Add New Task</h3><form onSubmit={handleSubmit}><div className="mb-4"><label htmlFor="title" className="block text-sm font-medium text-brand-light mb-1">Task Title</label><input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-brand-light mb-1">Category / Section</label><select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)} <option value="---new---">-- Add New Category --</option></select>{category === '---new---' && (<input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />)}</div><MultiSelectOwner owners={owners} allOwners={[...team, newOwner.trim()].filter(Boolean)} onUpdate={setOwners} isNewTask={true} newOwner={newOwner} setNewOwner={setNewOwner} /><div><label className="block text-sm font-medium text-brand-light mb-1">Due Date</label><input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"/></div></div><div className="flex justify-end gap-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Add Task</button></div></form></div>);};
+const AddTaskForm = ({ onAddTask, categories, projectMembers, onCancel }) => {
+    const [title, setTitle] = useState('');
+    const [category, setCategory] = useState(categories[0] || 'Uncategorized');
+    const [owners, setOwners] = useState([]);
+    const [dueDate, setDueDate] = useState('');
+    const [newCategory, setNewCategory] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!title.trim()) return;
+
+        const finalCategory = category === '---new---' ? newCategory.trim() : category;
+        if (!finalCategory) {
+            alert("Please select or create a category.");
+            return;
+        }
+
+        const finalOwners = owners.length > 0 ? owners : [{ type: 'guest', name: 'Unassigned' }];
+
+        onAddTask({
+            title: title.trim(),
+            category: finalCategory,
+            owner: finalOwners,
+            dueDate,
+            status: 'Pending'
+        });
+        onCancel();
+    };
+
+    return (
+        <div className="bg-brand-surface/80 border border-brand-primary/50 rounded-lg p-6 mb-8 backdrop-blur-sm relative z-20">
+            <h3 className="text-lg font-bold text-white mb-4">Add New Task</h3>
+            <form onSubmit={handleSubmit}>
+                <div className="mb-4">
+                    <label htmlFor="title" className="block text-sm font-medium text-brand-light mb-1">Task Title</label>
+                    <input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1">Category / Section</label>
+                        <select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary">
+                            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            <option value="---new---">-- Add New Category --</option>
+                        </select>
+                        {category === '---new---' && (
+                            <input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />
+                        )}
+                    </div>
+                     <div className="md:col-span-2">
+                        <MultiSelectOwner owners={owners} projectMembers={projectMembers} onUpdate={setOwners} isDemo={false} />
+                    </div>
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                     <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1">Due Date</label>
+                        <input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-4">
+                    <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button>
+                    <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Add Task</button>
+                </div>
+            </form>
+        </div>
+    );
+};
 const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity, taskTitle, isDemo }) => {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
