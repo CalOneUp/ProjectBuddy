@@ -1922,19 +1922,12 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                                 return (
                                     <>
                                         {visible.map((owner, index) => {
-                                            if (owner.type === 'user') {
-                                                return owner.photoURL ? (
-                                                    <img key={owner.uid || index} src={owner.photoURL} alt={owner.displayName} className="w-5 h-5 rounded-full border border-slate-700"/>
-                                                ) : (
-                                                    <div key={owner.uid || index} className="w-5 h-5 rounded-full bg-slate-500 text-[10px] text-white grid place-items-center border border-slate-700">
-                                                        {owner.displayName ? owner.displayName.split(/\s+/).filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('') : '?'}
-                                                    </div>
-                                                );
-                                            }
-                                            // Guest user
+                                            const name = owner.displayName || owner.name || '';
+                                            const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
+                                            const colorClass = owner.type === 'user' ? 'bg-slate-500' : 'bg-slate-700';
                                             return (
-                                                <div key={owner.name || index} className="w-5 h-5 rounded-full bg-slate-700 text-[10px] text-white grid place-items-center border border-slate-800" title={owner.name}>
-                                                    {owner.name ? owner.name[0].toUpperCase() : '?'}
+                                                 <div key={owner.uid || owner.name || index} className={`w-5 h-5 rounded-full ${colorClass} text-[10px] text-white grid place-items-center border border-slate-700`} title={name}>
+                                                    {initials || '?'}
                                                 </div>
                                             );
                                         })}
@@ -2126,7 +2119,9 @@ const MultiSelectOwner = ({ owners, projectMembers, onUpdate, isDemo }) => {
     const handleSelectionChange = (item, isSelected) => {
         let newOwners;
         if (isSelected) {
-            newOwners = [...owners, item];
+            // Ensure we are adding the full user object for members
+            const memberObject = projectMembers.find(m => m.uid === item.uid);
+            newOwners = [...owners, memberObject || item];
         } else {
             newOwners = owners.filter(o => (o.uid || o.name) !== (item.uid || item.name));
         }
@@ -2138,7 +2133,7 @@ const MultiSelectOwner = ({ owners, projectMembers, onUpdate, isDemo }) => {
             e.preventDefault();
             const newGuest = { type: 'guest', name: newGuestName.trim() };
             // Avoid adding duplicate guests
-            if (!owners.some(o => o.type === 'guest' && o.name === newGuest.name)) {
+            if (!owners.some(o => o.type === 'guest' && o.name.toLowerCase() === newGuest.name.toLowerCase())) {
                  onUpdate([...owners, newGuest]);
             }
             setNewGuestName('');
@@ -2146,7 +2141,7 @@ const MultiSelectOwner = ({ owners, projectMembers, onUpdate, isDemo }) => {
     };
 
     const isSelected = (item) => {
-        return owners.some(o => o.uid === item.uid || (o.type === 'guest' && o.name === item.name));
+        return owners.some(o => o.uid === item.uid);
     };
 
     return (
@@ -2162,7 +2157,7 @@ const MultiSelectOwner = ({ owners, projectMembers, onUpdate, isDemo }) => {
                         {(projectMembers || []).map(member => (
                              <label key={member.uid} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer">
                                 <input type="checkbox" checked={isSelected(member)} onChange={(e) => handleSelectionChange(member, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
-                                {member.photoURL ? <img src={member.photoURL} alt={member.displayName} className="ml-3 h-5 w-5 rounded-full"/> : <UserIcon className="ml-3 h-5 w-5 text-slate-400"/>}
+                                <UserIcon className="ml-3 h-5 w-5 text-slate-400"/>
                                 <span className="ml-2 text-sm text-slate-200">{member.displayName || member.email}</span>
                             </label>
                         ))}
