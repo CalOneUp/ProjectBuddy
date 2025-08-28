@@ -7,14 +7,16 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "firebase": "^9.17.1",
+    "firebase-admin": "^13.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-joyride": "^2.9.3",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "tailwindcss -i ./src/index.css -o ./src/main.css && CI=false react-scripts build",
+    "build": "tailwindcss -i ./src/index.css -o ./public/main.css && CI=false react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

@@ -1,1 +1,10 @@
+# See https://www.robotstxt.org/robotstxt.html for documentation on how to use the robots.txt file
+#
+# Allow all crawlers access to the site
+User-agent: *
+Disallow:
+
+# Disallow crawling of project pages, which are identified by the "id" query parameter
+Disallow: /?id=
+
 Sitemap: https://meetandtackle.com/sitemap.xml

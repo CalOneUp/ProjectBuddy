@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
+import Joyride from 'react-joyride';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, getDocs, where, getDoc, writeBatch, arrayUnion } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
 
 // --- Helper Components & Icons ---
+const GoogleIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...props}><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></svg>);
 const ChevronDown = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m6 9 6 6 6-6" /></svg>);
 const UserIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>);
 const AlertTriangleIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>);
@@ -23,25 +26,63 @@ const DownloadIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="
 const STATUS_OPTIONS = { 'Pending': { label: 'Pending', color: 'bg-yellow-400/20', textColor: 'text-yellow-300' }, 'In Progress': { label: 'In Progress', color: 'bg-blue-400/20', textColor: 'text-blue-300' }, 'Done': { label: 'Done', color: 'bg-green-400/20', textColor: 'text-green-300' },};
 const DEMO_PROJECT_ID = 'demo-project-123';
 
-// --- Local Storage Manager for Recent Projects (Moved to a clearer, single declaration spot) ---
+const WHATS_NEW_POSTS = [
+    {
+        version: '20250829',
+        date: 'August 29, 2025',
+        title: 'User Accounts, Avatars & More! 🚀',
+        content: () => (
+            <>
+                <p>This is a huge update with a ton of new features based on your feedback! 🎉</p>
+                <ul className="list-disc list-inside space-y-2 pl-2 mt-2">
+                    <li>👤 <strong>User Avatars:</strong> Task owners who are registered users will now show their smiling faces (or avatars) in the task cards. Guests will still show their initials.</li>
+                    <li><b>User Accounts:</b> You can now sign up with Google to save your projects and track your work.</li>
+                    <li><b>Settings Page:</b> Manage your profile picture, display name, and even delete your account from the new settings area.</li>
+                     <li><b>Hybrid Collaboration:</b> The app now supports assigning tasks to both registered users (with avatars!) and guests.</li>
+                    <li><b>Task Claiming:</b> If you see tasks assigned to a guest with your name, a banner will prompt you to claim them as your own.</li>
+                    <li><b>Content Pages:</b> Check out the new "How It Works" and "FAQ" pages in the footer.</li>
+                </ul>
+            </>
+        )
+    },
+    {
+        version: '20250827',
+        date: 'August 27, 2025',
+        title: 'Initial Feature Polish ✨',
+        content: () => (
+            <>
+                <p>We've polished some of the initial features to make projects smoother and clearer:</p>
+                 <ul className="list-disc list-inside space-y-2 pl-2 mt-2">
+                    <li>🗓️ <strong>Sort by Due Date</strong>: View upcoming work first.</li>
+                    <li>✏️ <strong>Full Task Editing</strong>: Update titles and categories right from the task card.</li>
+                    <li>📤 <strong>CSV Export</strong>: Download your tasks for sharing or importing elsewhere.</li>
+                    <li>⏰ <strong>Due Date Highlighting</strong>: Clear "No Due Date" tags help you spot missing deadlines.</li>
+                </ul>
+            </>
+        )
+    }
+];
+const LATEST_WHATS_NEW_VERSION = WHATS_NEW_POSTS[0].version;
+
 const recentProjectsManager = {
-    get: () => {
+    get: (userId) => {
+        if (!userId) return [];
         try {
-            const projects = localStorage.getItem('meetandtackle_recentProjects');
+            const projects = localStorage.getItem(`meetandtackle_recentProjects_${userId}`);
             return projects ? JSON.parse(projects) : [];
         } catch (e) {
             console.error("Failed to parse recent projects from localStorage", e);
             return [];
         }
     },
-    add: (project) => {
-        if (!project || !project.id || !project.name || project.id === DEMO_PROJECT_ID) return; // Don't save demo project
-        let projects = recentProjectsManager.get();
+    add: (userId, project) => {
+        if (!userId || !project || !project.id || !project.name || project.id === DEMO_PROJECT_ID) return;
+        let projects = recentProjectsManager.get(userId);
         projects = projects.filter(p => p.id !== project.id);
-        projects.unshift(project);
+        projects.unshift({id: project.id, name: project.name}); // Only store id and name
         projects = projects.slice(0, 5);
         try {
-            localStorage.setItem('meetandtackle_recentProjects', JSON.stringify(projects));
+            localStorage.setItem(`meetandtackle_recentProjects_${userId}`, JSON.stringify(projects));
         } catch (e) {
             console.error("Failed to save recent projects to localStorage", e);
         }
@@ -125,36 +166,32 @@ const ToastProvider = ({ children }) => {
 export default function App() {
     const [route, setRoute] = useState({ page: 'home', projectId: null });
     const [db, setDb] = useState(null);
+    const [auth, setAuth] = useState(null);
+    const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [notification, setNotification] = useState(null);
 
     // This effect handles URL changes and browser navigation (back/forward)
     useEffect(() => {
+        const getRouteFromUrl = () => {
+            const pathname = window.location.pathname;
+            const queryParams = new URLSearchParams(window.location.search);
+            const projectId = queryParams.get('id');
+
+            if (pathname === '/auth') return { page: 'auth', projectId: null };
+            if (pathname === '/settings') return { page: 'settings', projectId: null };
+            if (pathname === '/how-it-works') return { page: 'how-it-works', projectId: null };
+            if (pathname === '/faq') return { page: 'faq', projectId: null };
+            if (projectId) return { page: 'project', projectId };
+            return { page: 'home', projectId: null };
+        };
+
         const handlePopState = (event) => {
-            if (event.state) {
-                setRoute(event.state);
-            } else {
-                // This handles going back to the initial state
-                const queryParams = new URLSearchParams(window.location.search);
-                const projectId = queryParams.get('id');
-                if (projectId) {
-                    setRoute({ page: 'project', projectId });
-                } else {
-                    setRoute({ page: 'home', projectId: null });
-                }
-            }
+            setRoute(event.state || getRouteFromUrl());
         };
 
         window.addEventListener('popstate', handlePopState);
-
-        // Set initial route based on the URL when the app first loads
-        const queryParams = new URLSearchParams(window.location.search);
-        const initialProjectId = queryParams.get('id');
-        if (initialProjectId) {
-            setRoute({ page: 'project', projectId: initialProjectId });
-        } else {
-             setRoute({ page: 'home', projectId: null });
-        }
+        setRoute(getRouteFromUrl()); // Set initial route
 
         return () => {
             window.removeEventListener('popstate', handlePopState);
@@ -165,15 +202,31 @@ export default function App() {
     // This effect syncs the app's route state to the browser's URL and history
     useEffect(() => {
         const { page, projectId } = route;
-        const url = page === 'project' && projectId ? `?id=${projectId}` : '/';
-        
-        // Prevent pushing the same state to history
-        if (window.location.search !== url && url.startsWith('?')) {
-            window.history.pushState(route, '', url);
-        } else if (window.location.pathname !== url && url === '/') {
-             window.history.pushState(route, '', url);
+        let url;
+        switch(page) {
+            case 'project':
+                url = `/?id=${projectId}`;
+                break;
+            case 'faq':
+                url = '/faq';
+                break;
+            case 'how-it-works':
+                url = '/how-it-works';
+                break;
+            case 'auth':
+                url = '/auth';
+                break;
+            case 'settings':
+                url = '/settings';
+                break;
+            default:
+                url = '/';
         }
 
+        const currentUrl = window.location.pathname + window.location.search;
+        if (currentUrl !== url) {
+            window.history.pushState(route, '', url);
+        }
     }, [route]);
     
     const navigate = (page, projectId = null) => {
@@ -197,18 +250,81 @@ export default function App() {
         };
     }, []);
 
-    // Initialize Firebase
+    // Initialize Firebase and Auth
     useEffect(() => {
         const firebaseConfig = JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG);
         try {
             const app = initializeApp(firebaseConfig);
             const firestore = getFirestore(app);
+            const authInstance = getAuth(app);
             setDb(firestore);
+            setAuth(authInstance);
+
+            const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
+                setUser(currentUser);
+                setIsLoading(false);
+            });
+            return () => unsubscribe();
+
         } catch (error) {
             console.error("Firebase initialization failed:", error);
+            setIsLoading(false);
         }
-        setIsLoading(false);
     }, []);
+
+
+    const handleLogout = () => {
+        signOut(auth).then(() => {
+            navigate('home');
+            setNotification('You have been logged out.');
+        });
+    };
+
+    const handleGoogleLogin = () => {
+        const provider = new GoogleAuthProvider();
+        signInWithPopup(auth, provider)
+            .then((result) => {
+                navigate('home');
+                setNotification(`Welcome, ${result.user.displayName}!`);
+            }).catch((error) => {
+                setNotification(`Google login failed: ${error.message}`);
+            });
+    };
+
+    const handleUpdateProfile = (displayName, photoURL) => {
+        return updateProfile(auth.currentUser, { displayName, photoURL })
+            .then(() => {
+                setNotification('Profile updated successfully!');
+                setUser({...auth.currentUser});
+            });
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!window.confirm("Are you absolutely sure you want to delete your account? This will permanently delete your account and all of your projects. This action cannot be undone.")) {
+            throw new Error('Action cancelled by user.');
+        }
+
+        try {
+            const idToken = await auth.currentUser.getIdToken(true);
+            const response = await fetch('/.netlify/functions/deleteUserAccount', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${idToken}`,
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(errorData || 'Failed to delete account.');
+            }
+            setNotification('Your account has been permanently deleted.');
+            navigate('home');
+
+        } catch (error) {
+            console.error("Account deletion failed:", error);
+            throw error;
+        }
+    };
 
 
     if (isLoading) {
@@ -233,8 +349,18 @@ export default function App() {
                         }
                     `}
                 </style>
-                { route.page === 'home' && <HomePage db={db} appId="meetandtackle-app" navigate={navigate} setNotification={setNotification} /> }
-                { route.page === 'project' && <ProjectPage db={db} appId="meetandtackle-app" projectId={route.projectId} navigate={navigate} notification={notification} setNotification={setNotification} /> }
+                <AppHeader navigate={navigate} user={user} onLogout={handleLogout} />
+                <div className="flex flex-col flex-grow">
+                    <div className="flex-grow">
+                        { route.page === 'home' && <HomePage db={db} appId="meetandtackle-app" navigate={navigate} setNotification={setNotification} user={user} /> }
+                        { route.page === 'project' && <ProjectPage db={db} appId="meetandtackle-app" projectId={route.projectId} navigate={navigate} notification={notification} setNotification={setNotification} user={user} /> }
+                        { route.page === 'how-it-works' && <HowItWorksPage navigate={navigate} /> }
+                        { route.page === 'faq' && <FaqPage navigate={navigate} /> }
+                        { route.page === 'auth' && <AuthPage onGoogleLogin={handleGoogleLogin} /> }
+                        { route.page === 'settings' && <SettingsPage user={user} onUpdateProfile={handleUpdateProfile} onDeleteAccount={handleDeleteAccount} /> }
+                    </div>
+                    <AppFooter navigate={navigate} />
+                </div>
             </div>
         </ToastProvider>
     );
@@ -242,13 +368,59 @@ export default function App() {
 
 
 // --- Home Page ---
-const HomePage = ({ db, appId, navigate, setNotification }) => {
+const HomePage = ({ db, appId, navigate, setNotification, user }) => {
     const [transcript, setTranscript] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState('');
-    const [recentProjects, setRecentProjects] = useState([]);
+    const [userProjects, setUserProjects] = useState([]);
+    const [visitedProjects, setVisitedProjects] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    const [runTour, setRunTour] = useState(false);
+
+    const tourSteps = [
+        {
+            target: '.tour-step-1-textarea',
+            content: 'Paste your full meeting transcript here. The more detailed, the better!',
+            disableBeacon: true,
+        },
+        {
+            target: '.tour-step-2-generate',
+            content: 'Click here to let our AI analyze the transcript and build your project plan.',
+        },
+        {
+            target: '.tour-step-3-demo',
+            content: 'Or, if you want to see how it works first, just view our demo project!',
+        },
+    ];
+
+    useEffect(() => {
+        const hasSeenTour = localStorage.getItem('meetandtackle_hasSeenTour');
+        if (!hasSeenTour) {
+            setRunTour(true);
+            localStorage.setItem('meetandtackle_hasSeenTour', 'true');
+        }
+    }, []);
+
+    useEffect(() => {
+        if (user && db) {
+            // Fetch owned projects
+            const projectsRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
+            const q = query(projectsRef, where("ownerId", "==", user.uid), orderBy('createdAt', 'desc'));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setUserProjects(projects);
+            });
+
+            // Get visited projects from local storage
+            setVisitedProjects(recentProjectsManager.get(user.uid));
+
+            return () => unsubscribe();
+        } else {
+            setUserProjects([]);
+            setVisitedProjects([]);
+        }
+    }, [user, db, appId]);
     
     // --- NEW: State and fetching for the expanded word list ---
     const [wordList, setWordList] = useState([]);
@@ -288,11 +460,14 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
     };
 
     useEffect(() => {
-        setRecentProjects(recentProjectsManager.get());
         resetMetaTags(); // Reset meta tags when returning to home page
     }, []);
 
     const handleGenerateProject = async () => {
+        if (!user) {
+            // Allow guest creation, but they won't own the project
+            // This is a design choice to allow for the original frictionless experience
+        }
         if (!transcript.trim()) {
             setError('Please paste a transcript first.');
             return;
@@ -385,23 +560,53 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
 
             const projectsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects');
             
-            const newProjectRef = await addDoc(projectsCollectionRef, { 
-                name: projectData.projectName || 'Untitled Project', 
-                deadline: projectData.projectDeadline || null, 
-                createdAt: serverTimestamp(), 
-                code: generateProjectCode() 
-            });
+            const newProject = {
+                name: projectData.projectName || 'Untitled Project',
+                deadline: projectData.projectDeadline || null,
+                createdAt: serverTimestamp(),
+                code: generateProjectCode(),
+            };
+
+            if (user) {
+                newProject.ownerId = user.uid;
+                newProject.members = [{
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName,
+                    photoURL: user.photoURL
+                }];
+            }
+
+            const newProjectRef = await addDoc(projectsCollectionRef, newProject);
 
             const tasksCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'projects', newProjectRef.id, 'tasks');
             
-            const tasksToAdd = projectData.tasks.map(task => ({
-                title: task.title || 'Untitled Task',
-                owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
-                category: task.category || 'General',
-                status: task.status || 'Pending',
-                dueDate: task.dueDate || ''
-            }));
-            const uniqueOwners = new Set(tasksToAdd.flatMap(t => t.owner).filter(o => o !== 'Unassigned'));
+            const projectMembers = newProject.members || [];
+
+            const tasksToAdd = projectData.tasks.map(task => {
+                const owners = (task.owner || []).map(name => {
+                    const matchedMember = projectMembers.find(m => m.displayName?.toLowerCase() === name.toLowerCase() || m.email?.toLowerCase() === name.toLowerCase());
+                    if (matchedMember) {
+                        return {
+                            type: 'user',
+                            uid: matchedMember.uid,
+                            displayName: matchedMember.displayName,
+                            photoURL: matchedMember.photoURL
+                        };
+                    }
+                    return { type: 'guest', name: name };
+                });
+
+                return {
+                    title: task.title || 'Untitled Task',
+                    owner: owners.length > 0 ? owners : [{ type: 'guest', name: 'Unassigned' }],
+                    category: task.category || 'General',
+                    status: task.status || 'Pending',
+                    dueDate: task.dueDate || ''
+                };
+            });
+
+            const uniqueOwners = new Set(tasksToAdd.flatMap(t => t.owner.map(o => o.displayName || o.name)).filter(name => name !== 'Unassigned'));
 
             await Promise.all(tasksToAdd.map(task => addDoc(tasksCollectionRef, task)));
             
@@ -465,30 +670,44 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            <Joyride
+                steps={tourSteps}
+                run={runTour}
+                continuous={true}
+                showProgress={true}
+                showSkipButton={true}
+                styles={{
+                    options: {
+                        arrowColor: '#1e293b', // bg-brand-surface
+                        backgroundColor: '#1e293b',
+                        primaryColor: '#38bdf8', // text-brand-primary
+                        textColor: '#d1d5db', // text-slate-300
+                        zIndex: 1000,
+                    }
+                }}
+            />
             <header className="text-center mb-12">
-                {/* Updated image tag for LCP optimization and WebP format */}
-                <img src="/mt-logo.webp" alt="Meet & Tackle Logo" className="mx-auto mb-4 max-w-sm" fetchpriority="high" />
+                <img src="/mt-logo.webp" alt="Meet & Tackle AI Meeting to Project Tool" className="mx-auto mb-4 max-w-sm" fetchpriority="high" />
+                <h1 className="text-4xl font-poppins font-bold text-white tracking-tight">Turn Meetings into Actionable Projects</h1>
                 <p className="text-brand-light text-lg mt-4">Hook into your action items. The best AI tool to tackle your meeting notes.</p>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:items-start">
+            <section id="main-tool" aria-labelledby="main-tool-heading" className="grid grid-cols-1 lg:grid-cols-5 gap-12 lg:items-start">
                 <div className="lg:col-span-3">
                     <div className="bg-brand-surface p-6 rounded-lg border border-slate-700 shadow-2xl">
-                        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="w-full h-96 bg-brand-dark border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-brand-primary placeholder-slate-500" disabled={isGenerating}/>
+                        <h2 id="main-tool-heading" className="sr-only">AI Project Generator</h2>
+                        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste your meeting transcript here to get started...&#10;&#10;Optional: Start with an 'Attendees:' list for better owner assignment.&#10;Attendees:&#10;Sarah Chen (SC)&#10;Mark Davies (MD)" className="tour-step-1-textarea w-full h-96 bg-brand-dark border border-slate-600 rounded-md p-4 text-sm text-slate-200 focus:ring-2 focus:ring-brand-primary placeholder-slate-500" disabled={isGenerating} aria-label="Meeting transcript input"/>
                         <div className="mt-4 flex justify-between items-center">
-                             <p className="text-slate-400 text-sm">
-                                Or{" "}
-                                <button
-                                    onClick={() => navigate('project', DEMO_PROJECT_ID)}
-                                    className="text-brand-light hover:text-brand-primary underline font-semibold"
-                                >
-                                    view an example project
-                                </button>
-                            </p>
+                            <button
+                                onClick={() => navigate('project', DEMO_PROJECT_ID)}
+                                className="tour-step-3-demo px-6 py-3 text-base font-semibold text-slate-300 bg-transparent border border-slate-600 rounded-lg hover:bg-slate-800 transition-colors"
+                            >
+                                View Demo Project
+                            </button>
                             <div className="flex items-center">
-                                {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20"><p>{error}</p></div>}
-                                <button onClick={handleGenerateProject} className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
+                                {error && <div className="text-sm text-red-400 mr-4 overflow-y-auto max-h-20" role="alert"><p>{error}</p></div>}
+                                <button onClick={handleGenerateProject} className="tour-step-2-generate flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGenerating}>
                                     {isGenerating ? (<><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Generating...</>) : (<><span className="text-lg">✨</span> Generate Project</>)}
                                 </button>
                             </div>
@@ -496,92 +715,241 @@ const HomePage = ({ db, appId, navigate, setNotification }) => {
                     </div>
                 </div>
 
-                <div className="lg:col-span-2">
+                <aside className="lg:col-span-2">
                     <div className="text-center mb-8">
                         <h2 className="text-2xl font-bold text-white mb-4">Already working on a project?</h2>
                         <div className="max-w-lg mx-auto bg-brand-surface p-6 rounded-lg border border-slate-700 shadow-2xl">
                             <form onSubmit={handleSearch} className="flex gap-2">
-                                <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />
-                                {/* Added aria-label for accessibility */}
+                                <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setError('')}} placeholder="Enter project code (e.g. purple.monkey.dishwasher)" className="flex-1 bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" aria-label="Project code input"/>
                                 <button type="submit" className="px-4 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 flex items-center justify-center w-14" disabled={!searchQuery.trim() || isSearching} aria-label="Search project by code">
                                     {isSearching ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <SearchIcon className="w-5 h-5" />}
                                 </button>
                             </form>
-                            {error && !isGenerating && <p className="text-sm text-red-400 mt-4">{error}</p>}
+                            {error && !isGenerating && <p className="text-sm text-red-400 mt-4" role="alert">{error}</p>}
                         </div>
                     </div>
 
-                    {recentProjects.length > 0 && (
-                        <div>
-                            <h2 className="text-2xl font-bold text-white mb-4 text-center">Recently Viewed Projects</h2>
+                    {user && userProjects.length > 0 && (
+                        <section aria-labelledby="user-projects-heading">
+                            <h2 id="user-projects-heading" className="text-2xl font-bold text-white mb-4 text-center">Your Projects</h2>
                             <div className="max-w-lg mx-auto space-y-3">
-                                {recentProjects.map(proj => (
+                                {userProjects.map(proj => (
                                     <div key={proj.id} onClick={() => navigate('project', proj.id)} className="bg-brand-surface p-4 rounded-lg border border-slate-700 hover:border-brand-primary flex justify-between items-center cursor-pointer transition-colors">
-                                        <span className="font-semibold text-slate-200">{proj.name}</span>
-                                        <ExternalLinkIcon className="w-5 h-5 text-slate-400" />
+                                        <div>
+                                            <span className="font-semibold text-slate-200">{proj.name}</span>
+                                            <p className="text-xs text-slate-400">Created: {new Date(proj.createdAt?.toDate()).toLocaleDateString()}</p>
+                                        </div>
+                                        <ExternalLinkIcon className="w-5 h-5 text-slate-400" aria-label="Open project" />
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </section>
                     )}
-                </div>
-            </div>
 
-            <div className="my-24 py-16 bg-brand-surface rounded-2xl">
+                    {user && visitedProjects.length > 0 && (
+                        <section aria-labelledby="visited-projects-heading" className="mt-8">
+                            <h2 id="visited-projects-heading" className="text-2xl font-bold text-white mb-4 text-center">Recently Visited</h2>
+                            <div className="max-w-lg mx-auto space-y-3">
+                                {visitedProjects.map(proj => (
+                                    <div key={proj.id} onClick={() => navigate('project', proj.id)} className="bg-brand-surface/50 p-4 rounded-lg border border-slate-700 hover:border-brand-primary flex justify-between items-center cursor-pointer transition-colors">
+                                        <span className="font-semibold text-slate-200">{proj.name}</span>
+                                        <ExternalLinkIcon className="w-5 h-5 text-slate-400" aria-label="Open project" />
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+                </aside>
+            </section>
+
+            <section aria-labelledby="features-heading" className="my-24 py-16 bg-brand-surface rounded-2xl">
                 <div className="max-w-5xl mx-auto px-6 text-center">
-                    <h2 className="text-3xl font-bold text-white mb-4">Stop Drowning in Meeting Notes. Start Tackling Your Projects.</h2>
-                    {/* Adjusted text color for better contrast */}
+                    <h2 id="features-heading" className="text-3xl font-bold text-white mb-4">Stop Drowning in Meeting Notes. Start Tackling Your Projects.</h2>
                     <p className="text-slate-300 mb-12 max-w-3xl mx-auto">Tired of action items getting lost at sea? Meet & Tackle is the AI-powered tool that analyzes your meeting transcripts, hooks every task, and organizes them into a clear, collaborative project plan. Stop just meeting; start tackling.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
-                            <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
+                            <FileTextIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary" aria-hidden="true"/>
                             <h3 className="text-xl font-semibold text-white mb-2">AI Project Creation</h3>
-                            {/* Adjusted text color for better contrast */}
                             <p className="text-slate-300">Paste any meeting transcript and our AI will instantly generate a complete project plan, complete with tasks, owners, and categories.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
-                             <ZapIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
+                             <ZapIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary" aria-hidden="true"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Automatic Project Updates</h3>
-                            {/* Adjusted text color for better contrast */}
                             <p className="text-slate-300">Got a follow-up meeting? Just paste the new transcript. Our AI will intelligently update existing tasks and add new ones.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
-                           <UsersIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
+                           <UsersIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary" aria-hidden="true"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Collaborative Dashboard</h3>
-                            {/* Adjusted text color for better contrast */}
                             <p className="text-slate-300">Share your project with a unique code. Everyone can see the real-time status, add comments, and update tasks together.</p>
                         </div>
                         <div className="bg-brand-dark p-6 rounded-lg border border-slate-700">
-                           <MessageSquareIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary"/>
+                           <MessageSquareIcon className="w-8 h-8 mx-auto mb-4 text-brand-primary" aria-hidden="true"/>
                             <h3 className="text-xl font-semibold text-white mb-2">Instant Slack Updates</h3>
-                            {/* Adjusted text color for better contrast */}
                             <p className="text-slate-300">With one click, generate a perfectly formatted Slack message to keep your team in the loop on project progress and at-risk tasks.</p>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
             
-            <div className="my-16">
+            <section aria-labelledby="transcription-help-heading" className="my-16">
                 <div className="max-w-4xl mx-auto px-6 text-center">
-                    <h2 className="text-3xl font-bold text-white mb-4">No Transcript? No Problem.</h2>
-                    {/* Adjusted text color for better contrast */}
+                    <h2 id="transcription-help-heading" className="text-3xl font-bold text-white mb-4">No Transcript? No Problem.</h2>
                     <p className="text-slate-300 mb-12 max-w-2xl mx-auto">Getting a transcript is easier than you think. Most meeting platforms have built-in transcription, or you can use a dedicated service. Once you have the text, just paste it in to see the magic happen.</p>
-                     <div className="flex justify-center gap-8">
-                        {/* Adjusted text color for better contrast on links */}
-                        <a href="https://support.zoom.us/hc/en-us/articles/115004794983-Using-audio-transcription-for-cloud-recordings" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Zoom</a>
-                        <a href="https://support.google.com/meet/answer/13286392?hl=en" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Google Meet</a>
-                        <a href="https://support.microsoft.com/en-us/office/view-live-transcription-in-a-te..." target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Microsoft Teams</a>
-                        <a href="https://otter.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Otter.ai</a>
-                        <a href="https://fireflies.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">Fireflies.ai</a>
+                     <div className="flex justify-center gap-8" role="list">
+                        <a href="https://support.zoom.us/hc/en-us/articles/115004794983-Using-audio-transcription-for-cloud-recordings" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Zoom</a>
+                        <a href="https://support.google.com/meet/answer/13286392?hl=en" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Google Meet</a>
+                        <a href="https://support.microsoft.com/en-us/office/view-live-transcription-in-a-te..." target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Microsoft Teams</a>
+                        <a href="https://otter.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Otter.ai</a>
+                        <a href="https://fireflies.ai/" target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" role="listitem">Fireflies.ai</a>
+                    </div>
+                </div>
+            </section>
+        </main>
+    );
+};
+
+// --- Auth Components ---
+
+const AppHeader = ({ navigate, user, onLogout }) => {
+    return (
+        <header className="bg-brand-surface/50 backdrop-blur-lg border-b border-slate-700/50 sticky top-0 z-40">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-16">
+                    <div className="flex items-center cursor-pointer" onClick={() => navigate('home')}>
+                        <img src="/mt-logo.webp" alt="Meet & Tackle Logo" className="h-8 w-auto" />
+                    </div>
+                    <div className="flex items-center">
+                        {user ? (
+                            <div className="flex items-center gap-4">
+                                <button onClick={onLogout} className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">Logout</button>
+                                <div onClick={() => navigate('settings')} className="cursor-pointer">
+                                    {user.photoURL ? (
+                                        <img src={user.photoURL} alt="Your profile" className="h-8 w-8 rounded-full" />
+                                    ) : (
+                                        <div className="h-8 w-8 rounded-full bg-slate-600 flex items-center justify-center text-sm font-bold text-white">
+                                            {user.email ? user.email[0].toUpperCase() : '?'}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <button onClick={() => navigate('auth')} className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">Login / Sign Up</button>
+                        )}
                     </div>
                 </div>
             </div>
-        </div>
+        </header>
+    );
+};
+
+const AuthPage = ({ onGoogleLogin }) => {
+    useEffect(() => {
+        updateMetaTags("Login or Sign Up | Meet & Tackle", "Sign in with your Google account to save projects and track your meeting action items.");
+        return () => resetMetaTags();
+    }, []);
+
+    return (
+        <main className="max-w-md mx-auto p-4 sm:p-6 lg:p-8 text-white mt-16">
+            <div className="bg-brand-surface p-8 rounded-lg border border-slate-700 shadow-2xl text-center">
+                <h1 className="text-3xl font-poppins font-bold mb-4">Welcome to Meet & Tackle</h1>
+                <p className="text-slate-300 mb-8">Sign in with your Google account to continue.</p>
+                <div>
+                    <button onClick={onGoogleLogin} type="button" className="w-full flex items-center justify-center gap-3 px-6 py-3 text-base font-semibold text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors">
+                        <GoogleIcon className="w-5 h-5" />
+                        <span>Sign in with Google</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+    );
+};
+
+const SettingsPage = ({ user, onUpdateProfile, onDeleteAccount }) => {
+    const [displayName, setDisplayName] = useState('');
+    const [photoURL, setPhotoURL] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        updateMetaTags("Settings | Meet & Tackle", "Manage your account settings.");
+        if (user) {
+            setDisplayName(user.displayName || '');
+            setPhotoURL(user.photoURL || '');
+        }
+        return () => resetMetaTags();
+    }, [user]);
+
+    const handleProfileSubmit = (e) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+        onUpdateProfile(displayName, photoURL)
+            .catch(err => setError(err.message))
+            .finally(() => setIsLoading(false));
+    };
+
+    const handleDelete = () => {
+        setError('');
+        onDeleteAccount()
+            .catch(err => {
+                if (err.code === 'auth/requires-recent-login') {
+                    setError('This is a sensitive action. Please log out and log back in before deleting your account.');
+                } else {
+                    setError(err.message);
+                }
+            });
+    }
+
+    if (!user) {
+        return (
+            <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 text-white">
+                 <h1 className="text-4xl font-poppins font-bold text-center mb-12">Settings</h1>
+                 <p className="text-center text-slate-400">You must be logged in to view this page.</p>
+            </main>
+        )
+    }
+
+    return (
+        <main className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8 text-white">
+            <h1 className="text-4xl font-poppins font-bold text-center mb-12">Account Settings</h1>
+
+            <div className="bg-brand-surface p-8 rounded-lg border border-slate-700 shadow-2xl mb-8">
+                <h2 className="text-2xl font-semibold text-brand-primary mb-6">Your Profile</h2>
+                <form onSubmit={handleProfileSubmit} className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="email">Email Address</label>
+                        <input type="email" id="email" value={user.email || ''} disabled className="w-full bg-brand-dark/50 border border-slate-600 rounded-md p-3 text-sm text-slate-400 cursor-not-allowed"/>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="displayName">Display Name</label>
+                        <input type="text" id="displayName" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-3 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1" htmlFor="photoURL">Photo URL</label>
+                        <input type="url" id="photoURL" value={photoURL} onChange={e => setPhotoURL(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-3 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
+                    </div>
+                    <div>
+                        <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+                            {isLoading ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : 'Save Profile'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div className="bg-red-900/20 p-8 rounded-lg border border-red-500/30 shadow-2xl">
+                 <h2 className="text-2xl font-semibold text-red-400 mb-4">Danger Zone</h2>
+                 <p className="text-slate-300 mb-4">Deleting your account is a permanent action. All of your authentication data will be removed. Please see our data policy note for information on project data.</p>
+                 {error && <p className="text-sm text-red-400 mb-4" role="alert">{error}</p>}
+                 <button onClick={handleDelete} className="w-full flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                     Delete My Account
+                 </button>
+            </div>
+        </main>
     );
 };
 
 // --- Project Page ---
-const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotification }) => {
+const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotification, user }) => {
     const [tasks, setTasks] = useState([]);
     const [project, setProject] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -602,21 +970,9 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     const [showNamePrompt, setShowNamePrompt] = useState(false);
     const [actionToRun, setActionToRun] = useState(null);
     const [activeAppId, setActiveAppId] = useState(appId); // --- FIX: State to hold the correct appId
-    const [showWhatsNew, setShowWhatsNew] = useState(false);
+    const [claimableGuestName, setClaimableGuestName] = useState(null);
 
     const isDemo = projectId === DEMO_PROJECT_ID;
-
-    useEffect(() => {
-        const whatsNewSeen = localStorage.getItem('meetandtackle_whatsNewSeen_20250901');
-        if (!whatsNewSeen) {
-            setShowWhatsNew(true);
-        }
-    }, []);
-
-    const handleCloseWhatsNew = () => {
-        setShowWhatsNew(false);
-        localStorage.setItem('meetandtackle_whatsNewSeen_20250901', 'true');
-    };
 
     useEffect(() => {
         if (notification) {
@@ -627,24 +983,27 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 
     useEffect(() => {
         const storedName = localStorage.getItem('meetandtackle_userName');
-        if (storedName) {
+        if (user) {
+            setUserName(user.displayName || user.email);
+        } else if (storedName) {
             setUserName(storedName);
-        } else if (!isDemo) { // Don't prompt for name in demo mode
-            setShowNamePrompt(true);
         } else {
-            setUserName('Guest'); // Set a default name for demo
+            setUserName(null);
         }
-    }, [isDemo]);
+    }, [user]);
 
     const requireName = (action) => {
-        if (userName) {
-            action(userName);
-        } else if (!isDemo) { // Only prompt for name if not in demo mode
-            setActionToRun(() => action);
-            setShowNamePrompt(true);
-        } else {
-             alert("This feature is disabled in the demo project.");
+        if (user) { // If user is logged in, action is permitted.
+            action(user.displayName || user.email);
+            return;
         }
+        if (userName) { // If a guest name is already set in state, action is permitted.
+            action(userName);
+            return;
+        }
+        // Otherwise, prompt for a name.
+        setActionToRun(() => action);
+        setShowNamePrompt(true);
     };
 
     useEffect(() => { if (window.gsap && window.Flip) { if (!gsapReady) setGsapReady(true); return; } const gsapScript = document.createElement('script'); gsapScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js'; gsapScript.async = true; gsapScript.onload = () => { const flipScript = document.createElement('script'); flipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/Flip.min.js'; flipScript.async = true; flipScript.onload = () => { window.gsap.registerPlugin(window.Flip); setGsapReady(true); }; document.body.appendChild(flipScript); }; document.body.appendChild(gsapScript); }, [gsapReady]);
@@ -665,12 +1024,12 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
             updateMetaTags(`Project: ${demoProject.name}`, `View the project plan for ${demoProject.name} on Meet & Tackle.`);
             
             const demoTasks = [
-                { id: 'demo-1', title: 'Draft initial design mockups', owner: ['Alice'], category: 'Design', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 7)).toISOString().split('T')[0] },
-                { id: 'demo-2', title: 'Set up staging server environment', owner: ['Bob'], category: 'Development', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 10)).toISOString().split('T')[0] },
-                { id: 'demo-3', title: 'Finalize branding and color palette', owner: ['Alice'], category: 'Design', status: 'Done', dueDate: new Date(new Date().setDate(today.getDate() - 5)).toISOString().split('T')[0] },
-                { id: 'demo-4', title: 'Develop user authentication flow', owner: ['Charlie'], category: 'Development', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 21)).toISOString().split('T')[0] },
-                { id: 'demo-5', title: 'Write copy for the new homepage', owner: ['Unassigned'], category: 'Marketing', status: 'Pending', dueDate: '' },
-                { id: 'demo-6', title: 'Review and approve final designs', owner: ['David'], category: 'Design', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 14)).toISOString().split('T')[0] },
+                { id: 'demo-1', title: 'Draft initial design mockups', owner: [{type: 'guest', name: 'Alice'}], category: 'Design', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 7)).toISOString().split('T')[0] },
+                { id: 'demo-2', title: 'Set up staging server environment', owner: [{type: 'guest', name: 'Bob'}], category: 'Development', status: 'In Progress', dueDate: new Date(new Date().setDate(today.getDate() + 10)).toISOString().split('T')[0] },
+                { id: 'demo-3', title: 'Finalize branding and color palette', owner: [{type: 'guest', name: 'Alice'}], category: 'Design', status: 'Done', dueDate: new Date(new Date().setDate(today.getDate() - 5)).toISOString().split('T')[0] },
+                { id: 'demo-4', title: 'Develop user authentication flow', owner: [{type: 'guest', name: 'Charlie'}], category: 'Development', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 21)).toISOString().split('T')[0] },
+                { id: 'demo-5', title: 'Write copy for the new homepage', owner: [{type: 'guest', name: 'Unassigned'}], category: 'Marketing', status: 'Pending', dueDate: '' },
+                { id: 'demo-6', title: 'Review and approve final designs', owner: [{type: 'guest', name: 'David'}], category: 'Design', status: 'Pending', dueDate: new Date(new Date().setDate(today.getDate() + 14)).toISOString().split('T')[0] },
             ];
             setTasks(demoTasks);
             setIsLoading(false);
@@ -715,15 +1074,29 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         setProject(projectData);
                         setProjectName(projectData.name);
                         setProjectDeadline(projectData.deadline || '');
-                        recentProjectsManager.add({ id: projectData.id, name: projectData.name });
+                        if (user) {
+                            recentProjectsManager.add(user.uid, projectData);
+                        }
                         updateMetaTags(`Project: ${projectData.name}`, `View the project plan for ${projectData.name} on Meet & Tackle.`);
+
+                // Add noindex tag for project pages
+                const noIndexTag = document.createElement('meta');
+                noIndexTag.name = 'robots';
+                noIndexTag.content = 'noindex';
+                document.head.appendChild(noIndexTag);
                     }
                 });
 
                 const tasksCollectionRef = collection(db, 'artifacts', finalAppId, 'public', 'data', 'projects', projectId, 'tasks');
                 const q = query(tasksCollectionRef); // No ordering here, sort client-side
                 const unsubTasks = onSnapshot(q, (snapshot) => {
-                    const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const fetchedTasks = snapshot.docs.map(doc => {
+                        const task = { id: doc.id, ...doc.data() };
+                        if (task.owner && task.owner.length > 0 && typeof task.owner[0] === 'string') {
+                            task.owner = task.owner.map(name => ({ type: 'guest', name: name }));
+                        }
+                        return task;
+                    });
                     setTasks(fetchedTasks);
                     setIsLoading(false);
                 });
@@ -732,6 +1105,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                     unsubProject();
                     unsubTasks();
                     resetMetaTags();
+                    // Remove the noindex tag on cleanup
+                    const noIndexTag = document.querySelector('meta[name="robots"]');
+                    if (noIndexTag) {
+                        document.head.removeChild(noIndexTag);
+                    }
                 };
             } else {
                 console.error("Project not found in any location!");
@@ -742,7 +1120,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         };
 
         fetchAndSubscribe();
-    }, [db, appId, projectId, isDemo]);
+    }, [db, appId, projectId, isDemo, user]);
 
     const handleProjectUpdate = (updates, actor) => {
         if (isDemo || !db || !projectId) return;
@@ -788,12 +1166,88 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         }
     };
 
+    const handleJoinProject = () => {
+        if (!user || !project) return;
+        const projectRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId);
+
+        const newMember = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+        };
+
+        // Use updateDoc with arrayUnion to safely add the new member
+        updateDoc(projectRef, {
+            members: arrayUnion(newMember)
+        }).then(() => {
+            setNotification("You have successfully joined the project!");
+        }).catch(err => {
+            console.error("Error joining project: ", err);
+            setNotification("Failed to join the project. Please try again.");
+        });
+    };
+
+    // Effect to find a guest assignee that matches the current logged-in user
+    useEffect(() => {
+        if (user && tasks.length > 0) {
+            const guestOwners = [...new Set(tasks.flatMap(t => t.owner).filter(o => o.type === 'guest' && o.name !== 'Unassigned').map(o => o.name))];
+            const userDisplayName = user.displayName?.toLowerCase();
+
+            if (!userDisplayName) return;
+
+            const foundMatch = guestOwners.find(name => userDisplayName.includes(name.toLowerCase()));
+
+            if (foundMatch) {
+                const dismissed = sessionStorage.getItem(`dismissed_claim_${projectId}_${foundMatch}`);
+                if (!dismissed) {
+                    setClaimableGuestName(foundMatch);
+                }
+            }
+        }
+    }, [user, tasks, projectId]);
+
+    const handleClaimTasks = (guestName) => {
+        if (!user || !db) return;
+
+        const batch = writeBatch(db);
+        const userAsOwner = {
+            type: 'user',
+            uid: user.uid,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+        };
+
+        tasks.forEach(task => {
+            const newOwners = task.owner.map(o => {
+                if (o.type === 'guest' && o.name === guestName) {
+                    return userAsOwner;
+                }
+                return o;
+            });
+
+            if (JSON.stringify(newOwners) !== JSON.stringify(task.owner)) {
+                const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', task.id);
+                batch.update(taskRef, { owner: newOwners });
+            }
+        });
+
+        batch.commit().then(() => {
+            setNotification(`Successfully claimed tasks assigned to ${guestName}.`);
+            setClaimableGuestName(null);
+            sessionStorage.setItem(`dismissed_claim_${projectId}_${guestName}`, 'true');
+        }).catch(err => {
+            console.error("Failed to claim tasks: ", err);
+            setNotification(`Error claiming tasks. Please try again.`);
+        });
+    };
+
     // --- FIX: Use activeAppId from state ---
     const logActivity = async (logMessage) => { if(isDemo || !db) return; const logRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'activityLog'); await addDoc(logRef, { log: logMessage, author: userName, timestamp: serverTimestamp() }); };
     // --- FIX: Use activeAppId from state ---
     const handleUpdateTask = (taskId, updates) => requireName((name) => { if (isDemo || !db) return; const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); const originalTask = tasks.find(t => t.id === taskId); if(updates.status && originalTask.status !== updates.status){ logActivity(`${name} updated status of '${originalTask.title}' to ${updates.status}`); } try { updateDoc(taskRef, updates); } catch (e) { console.error("Error updating task: ", e); setNotification && setNotification('Failed to update task. Please try again.'); } });
     // --- FIX: Use activeAppId from state ---
-    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [newTask.owner] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); setNotification && setNotification('Failed to add task. Please try again.'); } });
+    const handleAddTask = (newTask) => requireName((name) => { if (isDemo || !db) return; const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks'); try { addDoc(tasksRef, { ...newTask, owner: Array.isArray(newTask.owner) ? newTask.owner : [{type: 'guest', name: 'Unassigned'}] }); logActivity(`${name} added new task: "${newTask.title}"`); } catch (e) { console.error("Error adding task: ", e); setNotification && setNotification('Failed to add task. Please try again.'); } });
     // --- FIX: Use activeAppId from state ---
     const handleDeleteTask = (taskId, taskTitle) => requireName((name) => { if (isDemo || !db) return; if (window.confirm("Are you sure? This action cannot be undone.")) { const taskRef = doc(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks', taskId); try { deleteDoc(taskRef); logActivity(`${name} deleted task: "${taskTitle}"`); } catch (e) { console.error("Error deleting task: ", e); setNotification && setNotification('Failed to delete task. Please try again.'); } } });
 
@@ -825,7 +1279,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                     const tasksRef = collection(db, 'artifacts', activeAppId, 'public', 'data', 'projects', projectId, 'tasks');
                     const sanitizedNewTasks = newTasks.map(task => ({
                         title: task.title || 'Untitled Task',
-                        owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner : ['Unassigned'],
+                        owner: Array.isArray(task.owner) && task.owner.length > 0 ? task.owner.map(o => ({type: 'guest', name: o})) : [{type: 'guest', name: 'Unassigned'}],
                         category: task.category || 'General',
                         status: task.status || 'Pending',
                         dueDate: task.dueDate || ''
@@ -900,11 +1354,13 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     
             Keep the update scannable and easy to read.
         `;
-    
+
+        const generationConfig = {}; // Define empty config for plain text response
+
         try {
             const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error("Failed to generate update.");
             const result = await response.json();
@@ -944,7 +1400,7 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         tasks.forEach(task => {
             const row = [
                 escapeCsvField(task.title),
-                escapeCsvField((task.owner || []).join('; ')),
+                escapeCsvField(task.owner.map(o => o.displayName || o.name).join('; ')),
                 escapeCsvField(task.category),
                 escapeCsvField(task.status),
                 escapeCsvField(task.dueDate || '')
@@ -985,9 +1441,10 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
     }, [tasks, sortBy]);
 
     const dynamicCategories = [...new Set(sortedTasks.map(t => t.category).filter(Boolean))].sort();
-    const dynamicTeam = [...new Set(tasks.flatMap(t => t.owner || []))].filter((v, i, a) => a.indexOf(v) === i).sort();
-    const filteredTasks = filterOwner === 'All' ? sortedTasks : sortedTasks.filter(task => task.owner?.includes(filterOwner));
+    const dynamicTeam = [...new Set(tasks.flatMap(t => t.owner?.map(o => o.displayName || o.name) || []))].filter(Boolean).sort();
+    const filteredTasks = filterOwner === 'All' ? sortedTasks : sortedTasks.filter(task => task.owner?.some(o => (o.displayName || o.name) === filterOwner));
     const progress = tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'Done').length / tasks.length) * 100) : 0;
+    const owner = project?.members?.find(m => m.uid === project.ownerId);
     const projectDeadlineDate = projectDeadline ? new Date(projectDeadline) : null;
     const daysRemaining = projectDeadline ? getDaysRemaining(projectDeadline) : 0;
 
@@ -1004,7 +1461,15 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
         <>
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                 <WhatsNewModal isOpen={showWhatsNew} onClose={handleCloseWhatsNew} />
-                <UserPromptModal
+                <ClaimBanner
+                    guestName={claimableGuestName}
+                    onClaim={() => handleClaimTasks(claimableGuestName)}
+                    onDismiss={() => {
+                        sessionStorage.setItem(`dismissed_claim_${projectId}_${claimableGuestName}`, 'true');
+                        setClaimableGuestName(null);
+                    }}
+                />
+                 <UserPromptModal
                     isOpen={showNamePrompt}
                     onSubmit={(name) => {
                         setUserName(name);
@@ -1028,13 +1493,6 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                     <div className="flex justify-between items-start">
                         <div>
                             <h1 className="text-4xl font-poppins font-bold text-white tracking-tight mb-2">
-                                <span
-                                    onClick={() => navigate('home')}
-                                    className="cursor-pointer hover:text-brand-light transition-colors duration-200"
-                                >
-                                    Meet & Tackle
-                                </span>
-                                <span className="text-slate-500 mx-2">/</span>
                                 {isEditingName ? (
                                     <input
                                         type="text"
@@ -1056,7 +1514,22 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                                     </span>
                                 )}
                             </h1>
-                            <p className="text-slate-300 mt-2">A real-time dashboard to track project progress.</p>
+                            <div className="flex items-center gap-3 mt-2">
+                                {owner ? (
+                                    <>
+                                        {owner.photoURL ? (
+                                            <img src={owner.photoURL} alt={owner.displayName || owner.email} className="h-6 w-6 rounded-full" />
+                                        ) : (
+                                            <div className="h-6 w-6 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-white">
+                                                {owner.email ? owner.email[0].toUpperCase() : '?'}
+                                            </div>
+                                        )}
+                                        <span className="text-sm text-slate-300">Owned by <span className="font-semibold text-slate-100">{owner.displayName || owner.email}</span></span>
+                                    </>
+                                ) : (
+                                    <p className="text-slate-300">A real-time dashboard to track project progress.</p>
+                                )}
+                            </div>
                         </div>
                         <div className="text-right">
                             {project.code &&
@@ -1125,6 +1598,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                 </div>
                  {updateFeedback && (<div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg relative mb-4 flex justify-between items-center"><span>{updateFeedback}</span><button onClick={() => setUpdateFeedback('')} className="font-bold text-xl ml-4">&times;</button></div>)}
                 <div className="mb-8 flex gap-4">
+                    {user && !project.members?.some(m => m.uid === user.uid) && (
+                         <button onClick={handleJoinProject} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:opacity-90 transition-opacity">
+                            <UserIcon className="w-5 h-5" /> Join Project
+                        </button>
+                    )}
                     <button onClick={() => requireName(() => setShowAddTaskForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><PlusCircleIcon className="w-5 h-5" /> Add New Task</button>
                     <button onClick={() => requireName(() => setShowUpdateForm(true))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDemo}><span className="text-lg">✨</span> Update with Transcript</button>
                     <button onClick={handleGenerateSlackUpdate} disabled={isGeneratingUpdate || isDemo} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-brand-primary bg-transparent border border-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
@@ -1136,11 +1614,11 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
                         Export to CSV
                     </button>
                 </div>
-                {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} team={dynamicTeam} onCancel={() => setShowAddTaskForm(false)} />}
+                {showAddTaskForm && <AddTaskForm onAddTask={(task) => handleAddTask(task)} categories={dynamicCategories} projectMembers={project.members || []} onCancel={() => setShowAddTaskForm(false)} />}
                 {showUpdateForm && <UpdateProjectForm onUpdate={(transcript) => handleUpdateWithTranscript(transcript)} onCancel={() => setShowUpdateForm(false)} />}
                 {!gsapReady ? (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-primary"></div></div>) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={activeAppId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} dynamicCategories={dynamicCategories} />))}</div>
+                        <div className="lg:col-span-2">{dynamicCategories.map(category => (<CategorySection key={category} category={category} tasks={filteredTasks.filter(t => t.category === category)} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} db={db} appId={activeAppId} projectId={projectId} logActivity={logActivity} userName={userName} isDemo={isDemo} dynamicCategories={dynamicCategories} projectMembers={project.members || []} />))}</div>
                         <div className="lg:col-span-1"><ActivityLog db={db} appId={activeAppId} projectId={projectId} isDemo={isDemo} userName={userName} /></div>
                     </div>
                 )}
@@ -1162,26 +1640,45 @@ const ProjectPage = ({ db, appId, projectId, navigate, notification, setNotifica
 };
 
 // --- Sub-Components for Project Page ---
+
+const ClaimBanner = ({ guestName, onClaim, onDismiss }) => {
+    if (!guestName) return null;
+
+    return (
+        <div className="bg-brand-primary/10 border border-brand-primary/30 rounded-lg p-4 mb-6 flex items-center justify-between gap-4">
+            <p className="text-sm text-slate-200">
+                It looks like some tasks are assigned to <span className="font-bold text-white">"{guestName}"</span>. Is this you?
+            </p>
+            <div className="flex gap-4">
+                <button onClick={onClaim} className="px-4 py-1.5 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Yes, Claim Tasks</button>
+                <button onClick={onDismiss} className="text-sm font-semibold text-slate-300 hover:text-white">&times;</button>
+            </div>
+        </div>
+    )
+}
+
 const WhatsNewModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
-            <div className="bg-brand-surface rounded-lg border border-slate-700 p-6 shadow-2xl max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
-                <h3 className="text-2xl font-bold text-white mb-4">✨ What's New at Meet & Tackle</h3>
-                <div className="space-y-4 text-brand-light">
-                    <p>Fresh updates to make projects smoother and clearer:</p>
-                    <ul className="list-disc list-inside space-y-2 pl-2">
-                        <li>🗓️ <strong>Sort by Due Date</strong>: View upcoming work first, with undated tasks neatly pushed to the end.</li>
-                        <li>✏️ <strong>Full Task Editing</strong>: Update titles and categories right from the task card.</li>
-                        <li>📤 <strong>CSV Export</strong>: Download your tasks for sharing or importing elsewhere.</li>
-                        <li>⏰ <strong>Due Date Highlighting</strong>: Clear "No Due Date" tags help you spot missing deadlines.</li>
-                        <li>👥 <strong>Compact Owner Avatars</strong>: Owners now show as tidy initial bubbles with a +N indicator for larger teams.</li>
-                    </ul>
-                    <p>Thanks for using Meet & Tackle — more polish is on the way! ✨</p>
+            <div className="bg-brand-surface rounded-lg border border-slate-700 shadow-2xl max-w-2xl w-full mx-4 flex flex-col" style={{ maxHeight: '80vh' }} onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-700">
+                    <h3 className="text-2xl font-bold text-white">✨ What's New at Meet & Tackle</h3>
                 </div>
-                <div className="flex justify-end mt-6">
-                    <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Got it!</button>
+                <div className="p-6 space-y-8 text-brand-light overflow-y-auto">
+                    {WHATS_NEW_POSTS.map(post => (
+                        <article key={post.version}>
+                            <p className="text-sm text-slate-400 mb-1">{post.date}</p>
+                            <h4 className="text-xl font-bold text-brand-primary mb-3">{post.title}</h4>
+                            <div className="text-slate-300 space-y-2">{post.content()}</div>
+                        </article>
+                    ))}
+                </div>
+                <div className="p-6 border-t border-slate-700 mt-auto">
+                    <div className="flex justify-end">
+                        <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Got it!</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1317,8 +1814,8 @@ const ActivityLog = ({ db, appId, projectId, isDemo, userName }) => {
         </div>
     );
 };
-const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo, dynamicCategories }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-brand-primary/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} dynamicCategories={dynamicCategories} />))}</div></div>);};
-const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo, dynamicCategories }) => {
+const CategorySection = ({ category, tasks, onUpdate, onDelete, db, appId, projectId, userName, logActivity, isDemo, dynamicCategories, projectMembers }) => { const sectionRef = useRef(null); useLayoutEffect(() => { if (tasks.length > 0 && window.gsap) { window.gsap.fromTo(sectionRef.current.children, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'power3.out' }); } }, [tasks]); if (tasks.length === 0) return null; return (<div className="mb-8"><h2 className="text-xl font-bold text-slate-200 mb-4 pb-2 border-b-2 border-brand-primary/50">{category}</h2><div ref={sectionRef}>{tasks.map(task => (<TaskCard key={task.id} task={task} onUpdate={onUpdate} onDelete={onDelete} db={db} appId={appId} projectId={projectId} taskId={task.id} tasks={tasks} userName={userName} logActivity={logActivity} isDemo={isDemo} dynamicCategories={dynamicCategories} projectMembers={projectMembers} />))}</div></div>);};
+const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, tasks, userName, logActivity, isDemo, dynamicCategories, projectMembers }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const cardRef = useRef(null);
     const [editedTitle, setEditedTitle] = useState(task.title);
@@ -1367,7 +1864,6 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
 
     const status = STATUS_OPTIONS[task.status] || STATUS_OPTIONS['Pending'];
     const deadlineStatus = task.dueDate ? getDeadlineStatus(task.dueDate) : 'none';
-    const teamMembers = [...new Set([...tasks.flatMap(t => t.owner || []), ... (task.owner || [])])].sort();
     const allCategories = [...new Set([...(dynamicCategories || []), task.category])].sort();
 
     return (
@@ -1382,23 +1878,35 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                         {!task.dueDate && task.status !== 'Done' && <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-600/50 text-slate-300">No Due Date</span>}
                         {task.dueDate && <span className="text-xs text-brand-light hidden sm:block">{new Date(task.dueDate + 'T00:00:00Z').toLocaleDateString('en-CA')}</span>}
                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.label}</span>
-                        <div className="min-w-[6rem] max-w-[10rem] hidden md:flex items-center gap-1 shrink-0" title={(task.owner || []).join(', ')}>
+                        <div className="min-w-[6rem] max-w-[10rem] hidden md:flex items-center gap-1 shrink-0" title={(task.owner || []).map(o => o.displayName || o.name).join(', ')}>
                             {(() => {
                                 const owners = task.owner || [];
-                                if (owners.length === 0) {
+                                if (owners.length === 0 || (owners.length === 1 && owners[0]?.name === 'Unassigned')) {
                                     return <div className="w-5 h-5 rounded-full bg-slate-600 text-[10px] text-white grid place-items-center" title="Unassigned">?</div>;
                                 }
-                                const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('');
+
                                 const maxVisible = 3;
                                 const visible = owners.slice(0, maxVisible);
                                 const remaining = owners.length - visible.length;
+
                                 return (
                                     <>
-                                        {visible.map((name) => (
-                                            <div key={name} className="w-5 h-5 rounded-full bg-slate-500 text-[10px] text-white grid place-items-center border border-slate-700">
-                                                {initials(name)}
-                                            </div>
-                                        ))}
+                                        {visible.map((owner, index) => {
+                                            if (owner.type === 'user' && owner.photoURL) {
+                                                return (
+                                                    <img key={owner.uid} src={owner.photoURL} alt={owner.displayName} className="w-5 h-5 rounded-full border border-slate-700" title={owner.displayName} />
+                                                );
+                                            } else {
+                                                const name = owner.displayName || owner.name || '';
+                                                const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
+                                                const colorClass = owner.type === 'user' ? 'bg-slate-500' : 'bg-slate-700';
+                                                return (
+                                                     <div key={owner.uid || owner.name || index} className={`w-5 h-5 rounded-full ${colorClass} text-[10px] text-white grid place-items-center border border-slate-700`} title={name}>
+                                                        {initials || '?'}
+                                                    </div>
+                                                );
+                                            }
+                                        })}
                                         {remaining > 0 && (
                                             <div className="w-5 h-5 rounded-full bg-slate-700 text-[10px] text-white grid place-items-center border border-slate-700">+{remaining}</div>
                                         )}
@@ -1435,7 +1943,7 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
                                 {Object.keys(STATUS_OPTIONS).map(key => (<option key={key} value={key}>{STATUS_OPTIONS[key].label}</option>))}
                             </select>
                         </div>
-                        <MultiSelectOwner owners={task.owner || []} allOwners={teamMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} />
+                        <MultiSelectOwner owners={task.owner || []} projectMembers={projectMembers} onUpdate={(newOwners) => onUpdate(taskId, { owner: newOwners })} isDemo={isDemo} />
                         <div>
                             <label className="block text-xs text-brand-light mb-1">Due Date</label>
                             <input type="date" value={task.dueDate || ''} onChange={(e) => onUpdate(task.id, {dueDate: e.target.value})} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary disabled:cursor-not-allowed" disabled={isDemo} />
@@ -1450,7 +1958,72 @@ const TaskCard = ({ task, onUpdate, onDelete, db, appId, projectId, taskId, task
         </div>
     );
 };
-const AddTaskForm = ({ onAddTask, categories, team, onCancel }) => { const [title, setTitle] = useState(''); const [category, setCategory] = useState(categories[0] || 'Uncategorized'); const [owners, setOwners] = useState(team[0] ? [team[0]] : []); const [dueDate, setDueDate] = useState(''); const [newCategory, setNewCategory] = useState(''); const [newOwner, setNewOwner] = useState(''); const handleSubmit = (e) => { e.preventDefault(); if (!title.trim()) return; const finalCategory = category === '---new---' ? newCategory.trim() : category; let finalOwners = owners; if (newOwner.trim()) { finalOwners = [...finalOwners, newOwner.trim()]; } if (!finalCategory || finalOwners.length === 0) { alert("Please ensure category and owner are set."); return; } onAddTask({ title: title.trim(), category: finalCategory, owner: finalOwners, dueDate, status: 'Pending' }); onCancel(); }; return (<div className="bg-brand-surface/80 border border-brand-primary/50 rounded-lg p-6 mb-8 backdrop-blur-sm relative z-20"><h3 className="text-lg font-bold text-white mb-4">Add New Task</h3><form onSubmit={handleSubmit}><div className="mb-4"><label htmlFor="title" className="block text-sm font-medium text-brand-light mb-1">Task Title</label><input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-brand-light mb-1">Category / Section</label><select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)} <option value="---new---">-- Add New Category --</option></select>{category === '---new---' && (<input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />)}</div><MultiSelectOwner owners={owners} allOwners={[...team, newOwner.trim()].filter(Boolean)} onUpdate={setOwners} isNewTask={true} newOwner={newOwner} setNewOwner={setNewOwner} /><div><label className="block text-sm font-medium text-brand-light mb-1">Due Date</label><input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"/></div></div><div className="flex justify-end gap-4"><button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button><button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Add Task</button></div></form></div>);};
+const AddTaskForm = ({ onAddTask, categories, projectMembers, onCancel }) => {
+    const [title, setTitle] = useState('');
+    const [category, setCategory] = useState(categories[0] || 'Uncategorized');
+    const [owners, setOwners] = useState([]);
+    const [dueDate, setDueDate] = useState('');
+    const [newCategory, setNewCategory] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!title.trim()) return;
+
+        const finalCategory = category === '---new---' ? newCategory.trim() : category;
+        if (!finalCategory) {
+            alert("Please select or create a category.");
+            return;
+        }
+
+        const finalOwners = owners.length > 0 ? owners : [{ type: 'guest', name: 'Unassigned' }];
+
+        onAddTask({
+            title: title.trim(),
+            category: finalCategory,
+            owner: finalOwners,
+            dueDate,
+            status: 'Pending'
+        });
+        onCancel();
+    };
+
+    return (
+        <div className="bg-brand-surface/80 border border-brand-primary/50 rounded-lg p-6 mb-8 backdrop-blur-sm relative z-20">
+            <h3 className="text-lg font-bold text-white mb-4">Add New Task</h3>
+            <form onSubmit={handleSubmit}>
+                <div className="mb-4">
+                    <label htmlFor="title" className="block text-sm font-medium text-brand-light mb-1">Task Title</label>
+                    <input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1">Category / Section</label>
+                        <select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary">
+                            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            <option value="---new---">-- Add New Category --</option>
+                        </select>
+                        {category === '---new---' && (
+                            <input type="text" placeholder="New category name" value={newCategory} onChange={e => setNewCategory(e.target.value)} required className="mt-2 w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary" />
+                        )}
+                    </div>
+                     <div className="md:col-span-2">
+                        <MultiSelectOwner owners={owners} projectMembers={projectMembers} onUpdate={setOwners} isDemo={false} />
+                    </div>
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                     <div>
+                        <label className="block text-sm font-medium text-brand-light mb-1">Due Date</label>
+                        <input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-brand-dark border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-brand-primary"/>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-4">
+                    <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-700/50 rounded-md hover:bg-slate-700">Cancel</button>
+                    <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-md hover:opacity-90">Add Task</button>
+                </div>
+            </form>
+        </div>
+    );
+};
 const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity, taskTitle, isDemo }) => {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
@@ -1504,7 +2077,164 @@ const CommentSection = ({ db, appId, projectId, taskId, currentUser, logActivity
         </div>
     );
 };
-const MultiSelectOwner = ({ owners, allOwners, onUpdate, isNewTask, newOwner, setNewOwner, isDemo }) => { const [isOpen, setIsOpen] = useState(false); const wrapperRef = useRef(null); useEffect(() => { function handleClickOutside(event) { if (wrapperRef.current && !wrapperRef.current.contains(event.target)) { setIsOpen(false); } } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [wrapperRef]); const handleOwnerChange = (owner, checked) => { const newOwners = checked ? [...owners, owner] : owners.filter(o => o !== owner); onUpdate(newOwners); }; return (<div><label className="block text-xs text-brand-light mb-1">Owner(s)</label><div ref={wrapperRef} className="relative"><button type="button" onClick={() => !isDemo && setIsOpen(!isOpen)} className="w-full bg-brand-dark border border-slate-700 rounded-md p-2 text-sm text-white text-left flex justify-between items-center disabled:cursor-not-allowed" disabled={isDemo}>
-  <span className="truncate">{owners.join(', ') || 'Select Owner(s)'}</span><ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></button>{isOpen && (<div className="absolute z-10 w-full mt-1 bg-brand-surface border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
-  {allOwners.map(owner => (<label key={owner} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer"><input type="checkbox" checked={owners.includes(owner)} onChange={(e) => handleOwnerChange(owner, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
-    <span className="ml-3 text-sm text-slate-200">{owner}</span></label>))} {isNewTask && (<div className="p-2 border-t border-slate-700"><input type="text" placeholder="Add new owner..." value={newOwner} onChange={e => setNewOwner(e.target.value)} className="w-full bg-brand-dark border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-brand-primary"/></div>)}</div>)}</div></div>);};
+const MultiSelectOwner = ({ owners, projectMembers, onUpdate, isDemo }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [newGuestName, setNewGuestName] = useState('');
+    const wrapperRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [wrapperRef]);
+
+    const handleSelectionChange = (item, isSelected) => {
+        let newOwners;
+        if (isSelected) {
+            // Ensure we are adding the full user object for members
+            const memberObject = projectMembers.find(m => m.uid === item.uid);
+            newOwners = [...owners, memberObject || item];
+        } else {
+            newOwners = owners.filter(o => (o.uid || o.name) !== (item.uid || item.name));
+        }
+        onUpdate(newOwners);
+    };
+
+    const handleAddGuest = (e) => {
+        if (e.key === 'Enter' && newGuestName.trim()) {
+            e.preventDefault();
+            const newGuest = { type: 'guest', name: newGuestName.trim() };
+            // Avoid adding duplicate guests
+            if (!owners.some(o => o.type === 'guest' && o.name.toLowerCase() === newGuest.name.toLowerCase())) {
+                 onUpdate([...owners, newGuest]);
+            }
+            setNewGuestName('');
+        }
+    };
+
+    const isSelected = (item) => {
+        return owners.some(o => o.uid === item.uid);
+    };
+
+    return (
+        <div>
+            <label className="block text-xs text-brand-light mb-1">Owner(s)</label>
+            <div ref={wrapperRef} className="relative">
+                <button type="button" onClick={() => !isDemo && setIsOpen(!isOpen)} className="w-full bg-brand-dark border border-slate-700 rounded-md p-2 text-sm text-white text-left flex justify-between items-center disabled:cursor-not-allowed" disabled={isDemo}>
+                    <span className="truncate">{(owners || []).map(o => o.displayName || o.name).join(', ') || 'Select Owner(s)'}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-brand-surface border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {(projectMembers || []).map(member => (
+                             <label key={member.uid} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer">
+                                <input type="checkbox" checked={isSelected(member)} onChange={(e) => handleSelectionChange(member, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
+                                <UserIcon className="ml-3 h-5 w-5 text-slate-400"/>
+                                <span className="ml-2 text-sm text-slate-200">{member.displayName || member.email}</span>
+                            </label>
+                        ))}
+                         {(owners || []).filter(o => o.type === 'guest').map(guest => (
+                             <label key={guest.name} className="flex items-center p-2 hover:bg-brand-dark cursor-pointer">
+                                <input type="checkbox" checked={true} onChange={(e) => handleSelectionChange(guest, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
+                                <UserIcon className="ml-3 h-5 w-5 text-slate-600"/>
+                                <span className="ml-2 text-sm text-slate-200">{guest.name} (Guest)</span>
+                            </label>
+                         ))}
+                        <div className="p-2 border-t border-slate-700">
+                            <input type="text" placeholder="Add guest by name..." value={newGuestName} onChange={e => setNewGuestName(e.target.value)} onKeyDown={handleAddGuest} className="w-full bg-brand-dark border-none rounded-md p-1 text-sm text-white focus:ring-1 focus:ring-brand-primary"/>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- Content Pages & Footer ---
+
+const AppFooter = ({ navigate }) => {
+    return (
+        <footer className="bg-brand-surface mt-24">
+            <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 text-center text-slate-400">
+                <img src="/mt-logo.webp" alt="Meet & Tackle Logo" className="mx-auto mb-6 h-12" />
+                <div className="flex justify-center space-x-6 mb-8">
+                    <button onClick={() => navigate('home')} className="text-sm hover:text-brand-primary transition-colors">Home</button>
+                    <button onClick={() => navigate('how-it-works')} className="text-sm hover:text-brand-primary transition-colors">How It Works</button>
+                    <button onClick={() => navigate('faq')} className="text-sm hover:text-brand-primary transition-colors">FAQ</button>
+                </div>
+                <p className="text-xs">&copy; {new Date().getFullYear()} Meet & Tackle. All rights reserved.</p>
+            </div>
+        </footer>
+    );
+};
+
+const HowItWorksPage = ({ navigate }) => {
+    useEffect(() => {
+        updateMetaTags("How It Works | Meet & Tackle", "Learn how Meet & Tackle uses AI to turn your meeting transcripts into actionable project plans in three simple steps.");
+        return () => resetMetaTags();
+    }, []);
+
+    return (
+        <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 text-white">
+            <h1 className="text-4xl font-poppins font-bold text-center mb-8">How It Works</h1>
+            <div className="space-y-12 text-lg text-slate-300">
+                <section className="flex items-center gap-8">
+                    <div className="flex-1">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-4">Step 1: Paste Your Transcript</h2>
+                        <p>Simply copy the full text from your meeting transcript and paste it into the text area on our homepage. Our tool works with transcripts from any source, like Zoom, Google Meet, or Otter.ai. For best results, include a list of attendees.</p>
+                    </div>
+                    <FileTextIcon className="w-32 h-32 text-slate-700"/>
+                </section>
+                <section className="flex items-center gap-8">
+                     <ZapIcon className="w-32 h-32 text-slate-700"/>
+                    <div className="flex-1 text-right">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-4">Step 2: Generate with AI</h2>
+                        <p>Click the "Generate Project" button. Our AI will read and analyze the entire conversation, intelligently identifying action items, tasks, owners, and deadlines. It understands context, so it knows who is responsible for what.</p>
+                    </div>
+                </section>
+                <section className="flex items-center gap-8">
+                    <div className="flex-1">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-4">Step 3: Collaborate & Tackle</h2>
+                        <p>You'll be taken to a new, shareable project board with all your tasks neatly organized. From here, you can edit tasks, update statuses, add comments, and share the project with your team using a unique code. No more lost action items!</p>
+                    </div>
+                    <UsersIcon className="w-32 h-32 text-slate-700"/>
+                </section>
+            </div>
+        </main>
+    );
+};
+
+const FaqPage = ({ navigate }) => {
+    useEffect(() => {
+        updateMetaTags("Frequently Asked Questions | Meet & Tackle", "Find answers to common questions about Meet & Tackle, including data privacy, supported formats, and how our AI works.");
+        return () => resetMetaTags();
+    }, []);
+
+    return (
+        <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 text-white">
+            <h1 className="text-4xl font-poppins font-bold text-center mb-12">Frequently Asked Questions</h1>
+            <div className="space-y-8">
+                <div>
+                    <h2 className="text-2xl font-semibold text-brand-primary mb-3">Is my data secure?</h2>
+                    <p className="text-slate-300">Yes. We send your transcript to the AI for processing, but we do not store the full transcript. We only save the generated project and task data to your project board. Project boards are only accessible via their unique, non-guessable code.</p>
+                </div>
+                <div>
+                    <h2 className="text-2xl font-semibold text-brand-primary mb-3">What transcript formats do you support?</h2>
+                    <p className="text-slate-300">We support plain text. As long as you can copy and paste the text of the conversation, our tool can analyze it. It's designed to be flexible and work with transcripts from any popular meeting software.</p>
+                </div>
+                <div>
+                    <h2 className="text-2xl font-semibold text-brand-primary mb-3">Can I use this for free?</h2>
+                    <p className="text-slate-300">Yes, Meet & Tackle is currently free to use. We believe in making productivity tools accessible to everyone.</p>
+                </div>
+                <div>
+                    <h2 className="text-2xl font-semibold text-brand-primary mb-3">How accurate is the AI?</h2>
+                    <p className="text-slate-300">Our AI is highly accurate, but its performance depends on the quality and clarity of the transcript. For best results, use transcripts from high-quality audio recordings and ensure speakers are clearly identified. You can always edit, add, or delete tasks on the project board after generation.</p>
+                </div>
+            </div>
+        </main>
+    );
+};

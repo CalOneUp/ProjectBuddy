@@ -17,6 +17,13 @@
       name="description"
       content="Stop letting action items get lost. Meet & Tackle uses AI to analyze your meeting transcripts and instantly create a collaborative project plan. Paste a transcript to get started."
     />
+    <meta
+      name="keywords"
+      content="ai project management, meeting transcript analysis, action item tracker, collaborative project plan, meeting notes to tasks, AI for meetings, task generation, project management tool"
+    />
+
+    <!-- Canonical Tag -->
+    <link rel="canonical" href="https://meetandtackle.com/" />
 
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://meetandtackle.com/" />
@@ -52,6 +59,41 @@
       gtag('js', new Date());
 
       gtag('config', 'G-5N2CCDR4P3');
+    </script>
+
+    <!-- Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "url": "https://meetandtackle.com/",
+          "name": "Meet & Tackle",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://meetandtackle.com/?id={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "Meet & Tackle",
+          "operatingSystem": "Web",
+          "applicationCategory": "Productivity",
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.9",
+            "ratingCount": "88"
+          },
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          }
+        }
+      ]
+    }
     </script>
   </head>
   <body>
