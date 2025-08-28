@@ -30,7 +30,7 @@ const WHATS_NEW_POSTS = [
     {
         version: '20250829',
         date: 'August 29, 2025',
-        title: 'User Accounts, Avatars & More!',
+        title: 'User Accounts, Avatars & More! 🚀',
         content: () => (
             <>
                 <p>This is a huge update with a ton of new features based on your feedback! 🎉</p>
@@ -48,7 +48,7 @@ const WHATS_NEW_POSTS = [
     {
         version: '20250827',
         date: 'August 27, 2025',
-        title: 'Initial Feature Polish',
+        title: 'Initial Feature Polish ✨',
         content: () => (
             <>
                 <p>We've polished some of the initial features to make projects smoother and clearer:</p>
